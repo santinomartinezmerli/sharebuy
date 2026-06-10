@@ -1,0 +1,116 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+
+function PostCard({ post }) {
+  const [liked, setLiked] = useState(false)
+
+  return (
+    <div className="bg-white border-b border-gray-100">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-medium">
+          {post.profiles?.username?.slice(0, 2).toUpperCase() ?? '??'}
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-900">{post.profiles?.username ?? 'usuario'}</p>
+          <p className="text-xs text-gray-400">{new Date(post.created_at).toLocaleDateString('es-AR')}</p>
+        </div>
+      </div>
+
+      <div className="aspect-square bg-gray-50 flex items-center justify-center relative">
+        <span className="text-7xl">{post.emoji ?? '🛍️'}</span>
+        {post.brand && (
+          <span className="absolute bottom-3 left-3 bg-white text-green-700 text-xs font-medium px-3 py-1 rounded-full border border-green-100">
+            {post.brand}
+          </span>
+        )}
+      </div>
+
+      <div className="px-4 py-3 flex flex-col gap-1">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setLiked(!liked)}>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-6 h-6 transition-colors ${liked ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </button>
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <p className="text-sm text-gray-500">
+          <span className="font-medium text-gray-900">{post.profiles?.username ?? 'usuario'}</span> {post.product}
+          {post.caption && ` · ${post.caption}`}
+          {post.price && <span className="text-green-500 font-medium"> ${post.price}</span>}
+        </p>
+        {post.where_bought && (
+          <p className="text-xs text-gray-400 flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            </svg>
+            {post.where_bought}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Feed() {
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+  }
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*, profiles(username)')
+        .order('created_at', { ascending: false })
+
+      if (!error) setPosts(data)
+      setLoading(false)
+    }
+
+    fetchPosts()
+  }, [])
+
+  return (
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <h1 className="text-xl font-semibold tracking-tight">
+          share<span className="text-green-500">buy</span>
+        </h1>
+        <div className="flex items-center gap-4 text-gray-400">
+          <button onClick={handleSignOut} className="text-xs text-red-400">Salir</button>
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.437L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20 text-sm text-gray-400">
+          Cargando...
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
+          <p className="text-sm">Todavía no hay compras</p>
+          <p className="text-xs">¡Sé el primero en compartir algo!</p>
+        </div>
+      ) : (
+        <div>
+          {posts.map(post => (
+            <PostCard key={post.id} post={post} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default Feed
