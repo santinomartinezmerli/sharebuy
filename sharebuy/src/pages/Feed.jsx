@@ -118,9 +118,18 @@ function Feed() {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUserId(user.id)
 
+      const { data: followsData } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', user.id)
+
+      const followingIds = followsData?.map(f => f.following_id) ?? []
+      const ids = [user.id, ...followingIds]
+
       const { data, error } = await supabase
         .from('posts')
         .select('*, profiles(username)')
+        .in('user_id', ids)
         .order('created_at', { ascending: false })
 
       if (!error) setPosts(data)
@@ -129,7 +138,6 @@ function Feed() {
 
     fetchPosts()
   }, [])
-
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
