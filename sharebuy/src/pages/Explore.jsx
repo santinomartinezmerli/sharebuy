@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const CATEGORIES = ['Todo', 'Ropa', 'Tecnología', 'Hogar', 'Deporte', 'Belleza']
 
 function Explore() {
+  const navigate = useNavigate()
   const [posts, setPosts] = useState([])
+  const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('Todo')
+  const [tab, setTab] = useState('posts')
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -23,11 +27,28 @@ function Explore() {
     fetchPosts()
   }, [])
 
+  useEffect(() => {
+    const searchUsers = async () => {
+      if (search.length < 2) { setUsers([]); return }
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .ilike('username', `%${search}%`)
+        .limit(10)
+
+      setUsers(data ?? [])
+    }
+
+    searchUsers()
+  }, [search])
+
   const filtered = posts.filter(post => {
     const matchSearch = search === '' ||
       post.product.toLowerCase().includes(search.toLowerCase()) ||
       post.brand?.toLowerCase().includes(search.toLowerCase())
-    return matchSearch
+    const matchCategory = category === 'Todo' || post.category === category
+    return matchSearch && matchCategory
   })
 
   return (
@@ -40,7 +61,7 @@ function Explore() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar productos, marcas..."
+            placeholder="Buscar productos, marcas o usuarios..."
             className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400"
           />
           {search && (
@@ -52,6 +73,30 @@ function Explore() {
           )}
         </div>
       </div>
+
+      {search.length >= 2 && users.length > 0 && (
+        <div className="border-b border-gray-100">
+          <p className="text-xs text-gray-400 uppercase tracking-wide px-4 pt-3 pb-2">Usuarios</p>
+          {users.map(user => (
+            <button
+              key={user.id}
+              onClick={() => navigate(`/user/${user.id}`)}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50"
+            >
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-medium flex-shrink-0">
+                {user.username?.slice(0, 2).toUpperCase()}
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-medium text-gray-900">{user.username}</p>
+                {user.bio && <p className="text-xs text-gray-400 truncate">{user.bio}</p>}
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex gap-2 px-4 py-3 overflow-x-auto border-b border-gray-100">
         {CATEGORIES.map(cat => (
@@ -81,8 +126,9 @@ function Explore() {
       ) : (
         <div className="grid grid-cols-2 gap-0.5 p-0.5">
           {filtered.map((post, index) => (
-            <div
+            <button
               key={post.id}
+              onClick={() => navigate(`/post/${post.id}`)}
               className={`bg-gray-50 overflow-hidden relative ${index % 3 === 0 ? 'row-span-2' : ''}`}
               style={{ aspectRatio: index % 3 === 0 ? '3/4' : '1/1' }}
             >
@@ -97,7 +143,7 @@ function Explore() {
                 <p className="text-white text-xs font-medium truncate">{post.product}</p>
                 {post.price && <p className="text-green-300 text-xs">${post.price}</p>}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

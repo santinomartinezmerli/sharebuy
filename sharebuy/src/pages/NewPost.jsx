@@ -62,6 +62,7 @@ function NewPost() {
       where_bought: form.where || null,
       caption: form.caption || null,
       image_url,
+      category: form.category || null,
     })
 
     setLoading(false)
@@ -137,6 +138,26 @@ function NewPost() {
             />
           </div>
         </div>
+
+          <div className="flex flex-col gap-1">
+  <label className="text-xs text-gray-400 uppercase tracking-wide">Categoría <span className="normal-case text-gray-300">· opcional</span></label>
+  <div className="flex gap-2 flex-wrap">
+    {['Ropa', 'Tecnología', 'Hogar', 'Deporte', 'Belleza'].map(cat => (
+      <button
+        key={cat}
+        type="button"
+        onClick={() => setForm({ ...form, category: form.category === cat ? '' : cat })}
+        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+          form.category === cat
+            ? 'bg-green-500 text-white border-green-500'
+            : 'border-gray-200 text-gray-500'
+        }`}
+      >
+        {cat}
+      </button>
+    ))}
+  </div>
+</div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-400 uppercase tracking-wide">¿Dónde lo compraste? <span className="normal-case text-gray-300">· opcional</span></label>

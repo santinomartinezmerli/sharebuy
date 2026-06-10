@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import StoryViewer from '../components/StoryViewer'
 
 function PostCard({ post, currentUserId }) {
   const [liked, setLiked] = useState(false)
@@ -108,6 +109,8 @@ function Feed() {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState(null)
+  const [storyGroups, setStoryGroups] = useState([])
+  const [activeStoryGroup, setActiveStoryGroup] = useState(null)
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -132,12 +135,32 @@ function Feed() {
         .in('user_id', ids)
         .order('created_at', { ascending: false })
 
-      if (!error) setPosts(data)
+      if (!error) {
+        setPosts(data)
+
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        const recentPosts = data.filter(p => new Date(p.created_at) > oneDayAgo)
+
+        const groups = {}
+        recentPosts.forEach(post => {
+          if (!groups[post.user_id]) {
+            groups[post.user_id] = {
+              userId: post.user_id,
+              username: post.profiles?.username,
+              stories: []
+            }
+          }
+          groups[post.user_id].stories.push(post)
+        })
+
+        setStoryGroups(Object.values(groups))
+      }
       setLoading(false)
     }
 
     fetchPosts()
   }, [])
+  
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
@@ -155,6 +178,27 @@ function Feed() {
         </div>
       </div>
 
+      {storyGroups.length > 0 && (
+        <div className="flex gap-3 px-4 py-3 overflow-x-auto border-b border-gray-100">
+          {storyGroups.map((group, index) => (
+            <button
+              key={group.userId}
+              onClick={() => setActiveStoryGroup(index)}
+              className="flex flex-col items-center gap-1 flex-shrink-0"
+            >
+              <div className="w-14 h-14 rounded-full p-0.5 border-2 border-green-500">
+                <div className="w-full h-full rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-medium overflow-hidden">
+                  {group.userId === currentUserId ? 'Tú' : group.username?.slice(0, 2).toUpperCase()}
+                </div>
+              </div>
+              <span className="text-[10px] text-gray-500 max-w-[56px] truncate">
+                {group.userId === currentUserId ? 'Tu compra' : group.username}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-20 text-sm text-gray-400">
           Cargando...
@@ -167,9 +211,17 @@ function Feed() {
       ) : (
         <div>
           {posts.map(post => (
-  <PostCard key={post.id} post={post} currentUserId={currentUserId} />
-))}
+            <PostCard key={post.id} post={post} currentUserId={currentUserId} />
+          ))}
         </div>
+      )}
+
+      {activeStoryGroup !== null && (
+        <StoryViewer
+          stories={storyGroups[activeStoryGroup].stories}
+          startIndex={0}
+          onClose={() => setActiveStoryGroup(null)}
+        />
       )}
     </div>
   )

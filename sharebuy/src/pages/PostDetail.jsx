@@ -112,20 +112,60 @@ function PostDetail() {
         </div>
 
         <div className="px-4 py-4 border-b border-gray-100">
-          <h1 className="text-lg font-semibold text-gray-900 mb-1">{post.product}</h1>
-          {post.caption && <p className="text-sm text-gray-500 mb-2">{post.caption}</p>}
-          <div className="flex items-center gap-3 flex-wrap">
-            {post.price && <span className="text-green-500 font-medium text-sm">${post.price}</span>}
-            {post.where_bought && (
-              <span className="text-xs text-gray-400 flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                </svg>
-                {post.where_bought}
-              </span>
-            )}
-          </div>
-        </div>
+  <div className="flex items-start justify-between mb-1">
+    <h1 className="text-lg font-semibold text-gray-900">{post.product}</h1>
+    {post.for_sale && (
+      <span className="bg-green-50 text-green-700 text-xs font-medium px-2 py-1 rounded-full border border-green-200 flex-shrink-0 ml-2">
+        En venta
+      </span>
+    )}
+  </div>
+  {post.caption && <p className="text-sm text-gray-500 mb-2">{post.caption}</p>}
+  <div className="flex items-center gap-3 flex-wrap">
+    {post.price && <span className="text-green-500 font-medium text-sm">${post.price}</span>}
+    {post.for_sale && post.sale_price && (
+      <span className="text-orange-500 font-medium text-sm">Venta: ${post.sale_price}</span>
+    )}
+    {post.where_bought && (
+      <span className="text-xs text-gray-400 flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+        </svg>
+        {post.where_bought}
+      </span>
+    )}
+  </div>
+
+  {currentUserId === post.user_id && (
+    <button
+      onClick={async () => {
+        const { data } = await supabase
+          .from('posts')
+          .update({ for_sale: !post.for_sale })
+          .eq('id', post.id)
+          .select()
+          .single()
+        if (data) setPost(data)
+      }}
+      className={`mt-3 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+        post.for_sale
+          ? 'border-red-200 text-red-500'
+          : 'border-green-200 text-green-600'
+      }`}
+    >
+      {post.for_sale ? 'Quitar de venta' : 'Poner en venta'}
+    </button>
+  )}
+
+  {currentUserId !== post.user_id && post.for_sale && (
+    <button
+      onClick={() => navigate(`/user/${post.user_id}`)}
+      className="mt-3 w-full py-2.5 bg-green-500 text-white text-sm font-medium rounded-lg"
+    >
+      Contactar vendedor
+    </button>
+  )}
+</div>
 
         {reviews.length > 0 && (
           <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-4">
