@@ -1,8 +1,49 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-function PostCard({ post }) {
+function PostCard({ post, currentUserId }) {
   const [liked, setLiked] = useState(false)
+  const [likesCount, setLikesCount] = useState(0)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const fetchLikes = async () => {
+      const { count } = await supabase
+        .from('likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('post_id', post.id)
+
+      const { data: userLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('post_id', post.id)
+        .eq('user_id', currentUserId)
+        .single()
+
+      setLikesCount(count ?? 0)
+      setLiked(!!userLike)
+    }
+
+    fetchLikes()
+  }, [post.id, currentUserId])
+
+  const handleLike = async () => {
+    if (liked) {
+      await supabase.from('likes').delete()
+        .eq('post_id', post.id)
+        .eq('user_id', currentUserId)
+      setLiked(false)
+      setLikesCount(prev => prev - 1)
+    } else {
+      await supabase.from('likes').insert({
+        post_id: post.id,
+        user_id: currentUserId
+      })
+      setLiked(true)
+      setLikesCount(prev => prev + 1)
+    }
+  }
 
   return (
     <div className="bg-white border-b border-gray-100">
@@ -11,30 +52,35 @@ function PostCard({ post }) {
           {post.profiles?.username?.slice(0, 2).toUpperCase() ?? '??'}
         </div>
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-900">{post.profiles?.username ?? 'usuario'}</p>
+          <button onClick={() => navigate(`/user/${post.user_id}`)} className="text-sm font-medium text-gray-900">
+  {post.profiles?.username ?? 'usuario'}
+</button>
           <p className="text-xs text-gray-400">{new Date(post.created_at).toLocaleDateString('es-AR')}</p>
         </div>
       </div>
 
-      <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
-  {post.image_url ? (
-    <img src={post.image_url} className="w-full h-full object-cover" />
-  ) : (
-    <span className="text-7xl">{post.emoji ?? '🛍️'}</span>
-  )}
-  {post.brand && (
-    <span className="absolute bottom-3 left-3 bg-white text-green-700 text-xs font-medium px-3 py-1 rounded-full border border-green-100">
-      {post.brand}
-    </span>
-  )}
-</div>
+      <button onClick={() => navigate(`/post/${post.id}`)} className="w-full">
+  <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
+    {post.image_url ? (
+      <img src={post.image_url} className="w-full h-full object-cover" />
+    ) : (
+      <span className="text-7xl">{post.emoji ?? '🛍️'}</span>
+    )}
+    {post.brand && (
+      <span className="absolute bottom-3 left-3 bg-white text-green-700 text-xs font-medium px-3 py-1 rounded-full border border-green-100">
+        {post.brand}
+      </span>
+    )}
+  </div>
+</button>
 
       <div className="px-4 py-3 flex flex-col gap-1">
         <div className="flex items-center gap-4">
-          <button onClick={() => setLiked(!liked)}>
+          <button onClick={handleLike} className="flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" className={`w-6 h-6 transition-colors ${liked ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
+            {likesCount > 0 && <span className="text-xs text-gray-400">{likesCount}</span>}
           </button>
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -61,13 +107,17 @@ function PostCard({ post }) {
 function Feed() {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [currentUserId, setCurrentUserId] = useState(null)
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
   }
 
-  useEffect(() => {
+ useEffect(() => {
     const fetchPosts = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserId(user.id)
+
       const { data, error } = await supabase
         .from('posts')
         .select('*, profiles(username)')
@@ -109,8 +159,8 @@ function Feed() {
       ) : (
         <div>
           {posts.map(post => (
-            <PostCard key={post.id} post={post} />
-          ))}
+  <PostCard key={post.id} post={post} currentUserId={currentUserId} />
+))}
         </div>
       )}
     </div>

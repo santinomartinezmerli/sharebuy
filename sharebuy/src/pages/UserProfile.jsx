@@ -1,59 +1,85 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-function Profile() {
+function UserProfile() {
+  const { userId } = useParams()
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [posts, setPosts] = useState([])
+  const [following, setFollowing] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
+  const [currentUserId, setCurrentUserId] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetch = async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserId(user.id)
 
       const { data: profileData } = await supabase
-        .from('profiles').select('*').eq('id', user.id).single()
+        .from('profiles').select('*').eq('id', userId).single()
 
       const { data: postsData } = await supabase
-        .from('posts').select('*').eq('user_id', user.id)
+        .from('posts').select('*').eq('user_id', userId)
         .order('created_at', { ascending: false })
 
       const { count: followers } = await supabase
         .from('follows').select('*', { count: 'exact', head: true })
-        .eq('following_id', user.id)
+        .eq('following_id', userId)
 
       const { count: followingC } = await supabase
         .from('follows').select('*', { count: 'exact', head: true })
+        .eq('follower_id', userId)
+
+      const { data: followData } = await supabase
+        .from('follows').select('id')
         .eq('follower_id', user.id)
+        .eq('following_id', userId)
+        .single()
 
       setProfile(profileData)
       setPosts(postsData ?? [])
       setFollowersCount(followers ?? 0)
       setFollowingCount(followingC ?? 0)
+      setFollowing(!!followData)
       setLoading(false)
     }
+    fetch()
+  }, [userId])
 
-    fetchProfile()
-  }, [])
+  const handleFollow = async () => {
+    if (following) {
+      await supabase.from('follows').delete()
+        .eq('follower_id', currentUserId)
+        .eq('following_id', userId)
+      setFollowing(false)
+      setFollowersCount(prev => prev - 1)
+    } else {
+      await supabase.from('follows').insert({
+        follower_id: currentUserId,
+        following_id: userId
+      })
+      setFollowing(true)
+      setFollowersCount(prev => prev + 1)
+    }
+  }
 
   if (loading) return (
-    <div className="flex items-center justify-center py-20 text-sm text-gray-400">
-      Cargando...
-    </div>
+    <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
   )
 
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <span className="text-sm font-medium text-gray-900">{profile?.username}</span>
-        <button onClick={() => navigate('/edit-profile')} className="text-gray-400">
+        <button onClick={() => navigate(-1)} className="text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
+        <span className="text-sm font-medium text-gray-900">{profile?.username}</span>
+        <div className="w-6" />
       </div>
 
       <div className="px-4 py-4 border-b border-gray-100">
@@ -79,18 +105,28 @@ function Profile() {
         <p className="text-sm font-medium text-gray-900">{profile?.username}</p>
         {profile?.bio && <p className="text-sm text-gray-500 mt-1">{profile.bio}</p>}
 
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="mt-3 text-xs text-red-400"
-        >
-          Cerrar sesión
-        </button>
+        {currentUserId !== userId && (
+          <div className="flex gap-3 mt-3">
+            <button
+              onClick={handleFollow}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                following
+                  ? 'border border-gray-200 text-gray-700'
+                  : 'bg-green-500 text-white'
+              }`}
+            >
+              {following ? 'Siguiendo' : 'Seguir'}
+            </button>
+            <button className="flex-1 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-700">
+              Mensaje
+            </button>
+          </div>
+        )}
       </div>
 
       {posts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
-          <p className="text-sm">Todavía no publicaste nada</p>
-          <p className="text-xs">¡Compartí tu primera compra!</p>
+          <p className="text-sm">Sin compras todavía</p>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-0.5">
@@ -113,4 +149,4 @@ function Profile() {
   )
 }
 
-export default Profile
+export default UserProfile
