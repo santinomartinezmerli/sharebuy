@@ -11,10 +11,19 @@ function NewPost() {
     where: '',
     caption: ''
   })
+  const [image, setImage] = useState(null)
+  const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleImage = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setImage(file)
+    setPreview(URL.createObjectURL(file))
   }
 
   const handleSubmit = async () => {
@@ -23,6 +32,28 @@ function NewPost() {
 
     const { data: { user } } = await supabase.auth.getUser()
 
+    let image_url = null
+
+    if (image) {
+      const ext = image.name.split('.').pop()
+      const filename = `${user.id}-${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('posts')
+        .upload(filename, image)
+
+      if (uploadError) {
+        console.error(uploadError)
+        setLoading(false)
+        return
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('posts')
+        .getPublicUrl(filename)
+
+      image_url = urlData.publicUrl
+    }
+
     const { error } = await supabase.from('posts').insert({
       user_id: user.id,
       product: form.product,
@@ -30,15 +61,11 @@ function NewPost() {
       price: form.price || null,
       where_bought: form.where || null,
       caption: form.caption || null,
+      image_url,
     })
 
     setLoading(false)
-
-    if (error) {
-      console.error(error)
-      return
-    }
-
+    if (error) { console.error(error); return }
     navigate('/feed')
   }
 
@@ -53,21 +80,29 @@ function NewPost() {
         <span className="text-sm font-medium text-gray-900">Nueva compra</span>
         <button
           onClick={handleSubmit}
-          className={`text-sm font-medium ${form.product ? 'text-green-500' : 'text-gray-300'}`}
+          disabled={loading || !form.product}
+          className={`text-sm font-medium ${form.product && !loading ? 'text-green-500' : 'text-gray-300'}`}
         >
-          Publicar
+          {loading ? 'Publicando...' : 'Publicar'}
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
 
-        <div className="aspect-square bg-gray-50 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 text-gray-400">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <p className="text-sm">Subir foto</p>
-        </div>
+        <label className="cursor-pointer">
+          <input type="file" accept="image/*" onChange={handleImage} className="hidden" />
+          {preview ? (
+            <img src={preview} className="w-full aspect-square object-cover rounded-xl" />
+          ) : (
+            <div className="aspect-square bg-gray-50 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <p className="text-sm">Subir foto</p>
+            </div>
+          )}
+        </label>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-400 uppercase tracking-wide">¿Qué compraste?</label>

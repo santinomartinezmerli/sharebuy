@@ -16,14 +16,18 @@ function PostCard({ post }) {
         </div>
       </div>
 
-      <div className="aspect-square bg-gray-50 flex items-center justify-center relative">
-        <span className="text-7xl">{post.emoji ?? '🛍️'}</span>
-        {post.brand && (
-          <span className="absolute bottom-3 left-3 bg-white text-green-700 text-xs font-medium px-3 py-1 rounded-full border border-green-100">
-            {post.brand}
-          </span>
-        )}
-      </div>
+      <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
+  {post.image_url ? (
+    <img src={post.image_url} className="w-full h-full object-cover" />
+  ) : (
+    <span className="text-7xl">{post.emoji ?? '🛍️'}</span>
+  )}
+  {post.brand && (
+    <span className="absolute bottom-3 left-3 bg-white text-green-700 text-xs font-medium px-3 py-1 rounded-full border border-green-100">
+      {post.brand}
+    </span>
+  )}
+</div>
 
       <div className="px-4 py-3 flex flex-col gap-1">
         <div className="flex items-center gap-4">
