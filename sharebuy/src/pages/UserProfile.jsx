@@ -66,6 +66,27 @@ function UserProfile() {
     }
   }
 
+  const handleMessage = async () => {
+    const { data: existing } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`and(user1_id.eq.${currentUserId},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${currentUserId})`)
+      .maybeSingle()
+
+    if (existing) {
+      navigate(`/messages/${existing.id}`)
+      return
+    }
+
+    const { data: newConv, error } = await supabase
+      .from('conversations')
+      .insert({ user1_id: currentUserId, user2_id: userId })
+      .select('id')
+      .single()
+
+    if (!error) navigate(`/messages/${newConv.id}`)
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
   )
@@ -117,7 +138,10 @@ function UserProfile() {
             >
               {following ? 'Siguiendo' : 'Seguir'}
             </button>
-            <button className="flex-1 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-700">
+            <button
+              onClick={handleMessage}
+              className="flex-1 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-700"
+            >
               Mensaje
             </button>
           </div>

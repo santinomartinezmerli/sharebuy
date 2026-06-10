@@ -12,6 +12,8 @@ import UserProfile from './pages/UserProfile'
 import Notifications from './pages/Notifications'
 import Review from './pages/Review'
 import Layout from './components/Layout'
+import Messages from './pages/Messages'
+import Chat from './pages/Chat'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -68,6 +70,8 @@ useEffect(() => {
           <Route path="/profile" element={<Profile />} />
           <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/user/:userId" element={<UserProfile />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/messages/:conversationId" element={<Chat />} />
         </Routes>
       </Layout>
     </BrowserRouter>
