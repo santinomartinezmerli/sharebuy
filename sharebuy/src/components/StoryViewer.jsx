@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 
+const STYLE = document.createElement('style')
+STYLE.textContent = `@keyframes story-fade-out{from{opacity:1}to{opacity:0}}@keyframes story-fade-in{from{opacity:0}to{opacity:1}}`
+document.head.appendChild(STYLE)
+
 function StoryViewer({ groups, groupIndex, onClose, onGroupChange }) {
   const stories = groups[groupIndex].stories
   const [current, setCurrent] = useState(0)
   const [progress, setProgress] = useState(0)
   const [paused, setPaused] = useState(false)
+  const fadingOut = useRef(null)
 
   const timerRef = useRef(null)
   const touchStartTime = useRef(0)
@@ -12,14 +17,11 @@ function StoryViewer({ groups, groupIndex, onClose, onGroupChange }) {
   const isNavigatingBack = useRef(false)
   currentRef.current = current
 
-  // Cross-fade state
-  const [prevStory, setPrevStory] = useState(null)
-  const [fadePhase, setFadePhase] = useState(0)
-  // 0 = idle, 1 = preparing (both images rendered), 2 = transitioning
-
   const goNext = () => {
     if (current < stories.length - 1) {
-      transitionTo(current + 1)
+      fadingOut.current = stories[current]
+      setCurrent(c => c + 1)
+      setTimeout(() => { fadingOut.current = null }, 250)
     } else if (groupIndex < groups.length - 1) {
       onGroupChange(groupIndex + 1)
     } else {
@@ -29,32 +31,19 @@ function StoryViewer({ groups, groupIndex, onClose, onGroupChange }) {
 
   const goPrev = () => {
     if (current > 0) {
-      transitionTo(current - 1)
+      fadingOut.current = stories[current]
+      setCurrent(c => c - 1)
+      setTimeout(() => { fadingOut.current = null }, 250)
     } else if (groupIndex > 0) {
       isNavigatingBack.current = true
       onGroupChange(groupIndex - 1)
     }
   }
 
-  const transitionTo = (index) => {
-    if (fadePhase !== 0 || index === current) return
-    const prev = stories[current]
-    setPrevStory(prev)
-    setCurrent(index)
-    setFadePhase(1)
-
-    setTimeout(() => {
-      setFadePhase(2)
-      setTimeout(() => {
-        setPrevStory(null)
-        setFadePhase(0)
-      }, 250)
-    }, 20)
-  }
-
   useEffect(() => {
     setCurrent(0)
     setProgress(0)
+    fadingOut.current = null
   }, [groupIndex])
 
   useEffect(() => {
@@ -143,6 +132,20 @@ function StoryViewer({ groups, groupIndex, onClose, onGroupChange }) {
   const story = stories[current]
   if (!story) return null
 
+  const renderContent = (s) => {
+    if (s.image_url) {
+      return (
+        <img
+          src={s.image_url}
+          className="w-full h-full object-contain pointer-events-none"
+          draggable={false}
+          style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
+        />
+      )
+    }
+    return <span className="text-8xl pointer-events-none select-none">{s.emoji ?? '🛍️'}</span>
+  }
+
   return (
     <div
       className="fixed inset-0 bg-black z-50 flex items-center justify-center select-none"
@@ -192,51 +195,25 @@ function StoryViewer({ groups, groupIndex, onClose, onGroupChange }) {
           </button>
         </div>
 
-        {/* Story content with cross-fade */}
+        {/* Story content */}
         <div className="flex-1 relative bg-gray-900">
-          {/* New image layer */}
           <div
+            key={current}
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            style={{
-              opacity: fadePhase === 2 ? 1 : fadePhase === 0 ? 1 : 0,
-              transition: fadePhase === 2 ? 'opacity 0.2s ease-in-out' : 'none',
-            }}
+            style={{ animation: 'story-fade-in 0.2s ease-in-out' }}
           >
-            {story.image_url ? (
-              <img
-                src={story.image_url}
-                className="w-full h-full object-contain"
-                draggable={false}
-                style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
-              />
-            ) : (
-              <span className="text-8xl pointer-events-none select-none">{story.emoji ?? '🛍️'}</span>
-            )}
+            {renderContent(story)}
           </div>
 
-          {/* Previous image fading out */}
-          {prevStory && (
+          {fadingOut.current && (
             <div
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
-              style={{
-                opacity: fadePhase === 2 ? 0 : 1,
-                transition: fadePhase === 2 ? 'opacity 0.2s ease-in-out' : 'none',
-              }}
+              style={{ animation: 'story-fade-out 0.2s ease-in-out forwards' }}
             >
-              {prevStory.image_url ? (
-                <img
-                  src={prevStory.image_url}
-                  className="w-full h-full object-contain"
-                  draggable={false}
-                  style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
-                />
-              ) : (
-                <span className="text-8xl pointer-events-none select-none">{prevStory.emoji ?? '🛍️'}</span>
-              )}
+              {renderContent(fadingOut.current)}
             </div>
           )}
 
-          {/* Hold overlay */}
           <div
             className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-200 ${paused ? 'opacity-20' : 'opacity-0'}`}
           />
