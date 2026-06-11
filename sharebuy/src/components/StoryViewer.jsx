@@ -80,6 +80,7 @@ function StoryViewer({ groups, groupIndex, storyGroupUserId, onClose, onGroupCha
   }, [paused, current, groupIndex])
 
   const handleTouchStart = (e) => {
+    e.preventDefault()
     e.stopPropagation()
     touchStartTime.current = Date.now()
     setPaused(true)
@@ -148,7 +149,7 @@ function StoryViewer({ groups, groupIndex, storyGroupUserId, onClose, onGroupCha
 
   return (
     <div
-      className="fixed inset-0 bg-black z-50 flex items-center justify-center select-none"
+      className="fixed inset-0 bg-black z-50 flex items-center justify-center select-none touch-none"
       onContextMenu={(e) => e.preventDefault()}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
