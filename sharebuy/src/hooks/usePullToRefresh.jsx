@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { motion } from 'framer-motion'
 
 export function usePullToRefresh(onRefresh) {
   const [pulling, setPulling] = useState(false)
@@ -70,15 +71,19 @@ export function PullIndicator({ pulling, pullDistance, threshold }) {
   if (!pulling && pullDistance === 0) return null
 
   const progress = Math.min(pullDistance / threshold, 1)
+  const y = Math.max(pullDistance - 18, 0)
 
   return (
     <div className="flex items-center justify-center h-0 overflow-visible" style={{ height: 0 }}>
-      <div
+      <motion.div
         className="flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700"
-        style={{
-          transform: `translateY(${Math.max(pullDistance - 18, 0)}px)`,
-          opacity: Math.min(progress * 1.5, 1),
-          transition: pullDistance === 0 ? 'opacity 0.2s, transform 0.2s' : 'none',
+        animate={{ y, opacity: Math.min(progress * 1.5, 1), rotate: progress * 360 }}
+        transition={{
+          type: 'spring',
+          stiffness: 300,
+          damping: 30,
+          mass: 1,
+          opacity: { duration: 0.15 },
         }}
       >
         <svg
@@ -86,14 +91,10 @@ export function PullIndicator({ pulling, pullDistance, threshold }) {
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
-          style={{
-            transform: `rotate(${progress * 360}deg)`,
-            transition: pullDistance === 0 ? 'transform 0.2s' : 'none',
-          }}
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-      </div>
+      </motion.div>
     </div>
   )
 }
