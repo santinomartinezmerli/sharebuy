@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { useDarkMode } from '../lib/DarkModeContext'
 import { usePullToRefresh, PullIndicator } from '../hooks/usePullToRefresh'
+import { useNavDirection } from '../hooks/useNavDirection'
 
 function Layout({ children }) {
   const location = useLocation()
@@ -11,6 +13,7 @@ function Layout({ children }) {
     if (fn) { fn().catch?.(e => console.error('PTR error:', e)) } else { window.location.reload() }
   })
   const { dark, toggle } = useDarkMode()
+  const direction = useNavDirection()
   const [unreadCount, setUnreadCount] = useState(0)
 
   const fetchUnread = useCallback(async () => {
@@ -65,7 +68,18 @@ function Layout({ children }) {
     <div className="flex flex-col h-dvh max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden">
       <main className={`flex-1 ${location.pathname.startsWith('/messages/') ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'} overscroll-contain pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] relative`}>
         <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
-        {children}
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={{ x: direction > 0 ? '100%' : '-100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: direction > 0 ? '-30%' : '30%', opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+            className="h-full"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       <div className="flex-shrink-0 pb-[env(safe-area-inset-bottom)]">
