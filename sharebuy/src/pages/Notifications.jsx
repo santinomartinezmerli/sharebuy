@@ -159,8 +159,8 @@ function Notifications() {
             if (notif.type === 'follow') {
               return (
                 <button key={notif.id} onClick={() => navigate(`/user/${notif.user_id}`)}
-                  className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 text-left hover:bg-gray-50">
-                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 text-left hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                     </svg>
@@ -175,8 +175,8 @@ function Notifications() {
             if (notif.type === 'like') {
               return (
                 <button key={notif.id} onClick={() => navigate(`/post/${notif.post_id}`)}
-                  className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 text-left hover:bg-gray-50">
-                  <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 text-left hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <div className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
@@ -194,8 +194,8 @@ function Notifications() {
             if (notif.type === 'comment') {
               return (
                 <button key={notif.id} onClick={() => navigate(`/post/${notif.post_id}`)}
-                  className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 text-left hover:bg-gray-50">
-                  <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                  className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 text-left hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
@@ -213,7 +213,7 @@ function Notifications() {
             }
             if (notif.type === 'review') {
               return (
-                <div key={notif.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100 bg-purple-50">
+                <div key={notif.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-purple-50 dark:bg-purple-900/20">
                   <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

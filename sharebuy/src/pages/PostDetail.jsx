@@ -316,7 +316,7 @@ function PostDetail() {
           )}
 
           {!isOwner && post.for_sale && (
-            <button onClick={() => navigate(`/user/${post.user_id}`)} className="mt-3 w-full py-2.5 bg-green-500 text-white text-sm font-medium rounded-lg">
+            <button onClick={() => navigate(`/user/${post.user_id}`)} className="mt-3 w-full py-2.5 bg-green-500 text-white text-sm font-medium rounded-xl hover:bg-green-600 transition-colors">
               Contactar vendedor
             </button>
           )}

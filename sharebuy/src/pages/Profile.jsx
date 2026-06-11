@@ -85,15 +85,15 @@ function Profile() {
           <div className="flex gap-6 flex-1 justify-center">
             <div className="flex flex-col items-center">
               <span className="text-base font-semibold text-gray-900 dark:text-white">{posts.length}</span>
-              <span className="text-xs text-gray-400">compras</span>
+              <span className="text-[11px] text-gray-400">compras</span>
             </div>
             <button onClick={() => userId && navigate(`/user/${userId}/follow?type=followers`)} className="flex flex-col items-center">
               <span className="text-base font-semibold text-gray-900 dark:text-white">{followersCount}</span>
-              <span className="text-xs text-gray-400">seguidores</span>
+              <span className="text-[11px] text-gray-400">seguidores</span>
             </button>
             <button onClick={() => userId && navigate(`/user/${userId}/follow?type=following`)} className="flex flex-col items-center">
               <span className="text-base font-semibold text-gray-900 dark:text-white">{followingCount}</span>
-              <span className="text-xs text-gray-400">siguiendo</span>
+              <span className="text-[11px] text-gray-400">siguiendo</span>
             </button>
           </div>
         </div>

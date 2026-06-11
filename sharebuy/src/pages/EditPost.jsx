@@ -75,7 +75,7 @@ function EditPost() {
   )
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full dark:bg-gray-900 dark:text-white">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <button onClick={() => navigate(-1)} className="text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -108,7 +108,7 @@ function EditPost() {
             value={form.product}
             onChange={handleChange}
             placeholder="Nike Air Max 90"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-400"
+            className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent transition-colors"
           />
         </div>
 
@@ -120,7 +120,7 @@ function EditPost() {
               value={form.price}
               onChange={handleChange}
               placeholder="$0"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-400"
+              className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent transition-colors"
             />
           </div>
           <div className="flex flex-col gap-1 flex-1">
@@ -130,7 +130,7 @@ function EditPost() {
               value={form.brand}
               onChange={handleChange}
               placeholder="Nike"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-400"
+              className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent transition-colors"
             />
           </div>
         </div>
@@ -162,7 +162,7 @@ function EditPost() {
             value={form.where}
             onChange={handleChange}
             placeholder="Mercado Libre, tienda, etc."
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-400"
+            className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent transition-colors"
           />
         </div>
 
@@ -174,7 +174,7 @@ function EditPost() {
             onChange={handleChange}
             placeholder="Ahorré meses para esto..."
             rows={3}
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-400 resize-none"
+            className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent transition-colors resize-none"
           />
         </div>
 

@@ -49,7 +49,7 @@ function Landing() {
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             <img src="https://www.google.com/favicon.ico" className="w-4 h-4" />
             Continuar con Google
@@ -86,7 +86,7 @@ function Landing() {
             <button
               onClick={handleSubmit}
               disabled={loading || !email || !password}
-              className={`w-full py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 email && password && !loading
                   ? 'bg-green-500 text-white hover:bg-green-600'
                   : 'bg-gray-100 text-gray-400'

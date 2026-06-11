@@ -162,7 +162,7 @@ function EditProfile() {
             value={form.username}
             onChange={e => setForm({ ...form, username: e.target.value })}
             placeholder="tu.username"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-400"
+            className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent transition-colors"
           />
         </div>
 
@@ -173,7 +173,7 @@ function EditProfile() {
             onChange={e => setForm({ ...form, bio: e.target.value })}
             placeholder="Contá algo sobre vos..."
             rows={3}
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-400 resize-none"
+            className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent transition-colors resize-none"
           />
         </div>
 

@@ -74,7 +74,7 @@ function PostCard({ post, currentUserId }) {
     : (post.image_url ? [post.image_url] : [])
 
   return (
-    <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 shadow-sm dark:border-b-gray-800">
       <div className="flex items-center gap-3 px-4 py-3">
         <button onClick={() => navigate(`/user/${post.user_id}`)}>
           <Avatar url={post.profiles?.avatar_url} username={post.profiles?.username} size="md" />
@@ -279,7 +279,7 @@ function Feed() {
   return (
     <div className="flex flex-col dark:bg-gray-900 dark:text-white">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-        <h1 className="text-xl font-semibold tracking-tight">
+        <h1 className="text-lg font-semibold tracking-tight">
           share<span className="text-green-500">buy</span>
         </h1>
         <div className="flex items-center gap-4 text-gray-400">
@@ -325,8 +325,8 @@ function Feed() {
         </div>
       ) : posts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
-          <p className="text-sm">Todavía no hay compras</p>
-          <p className="text-xs">¡Sé el primero en compartir algo!</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Todavía no hay compras</p>
+          <p className="text-xs text-gray-400">¡Sé el primero en compartir algo!</p>
         </div>
       ) : (
         <div>

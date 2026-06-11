@@ -92,7 +92,7 @@ function Explore() {
     <div className="flex flex-col dark:bg-gray-900 dark:text-white">
       {/* Search bar */}
       <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-        <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200 flex-1">
+        <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2 border border-gray-200 dark:border-gray-600 flex-1 transition-colors focus-within:border-green-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -112,7 +112,7 @@ function Explore() {
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className={`p-2 rounded-lg border transition-colors ${showFilters ? 'bg-green-50 border-green-200 text-green-600' : 'border-gray-200 text-gray-400'}`}
+          className={`p-2 rounded-xl border transition-colors ${showFilters ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-600 dark:text-green-400' : 'border-gray-200 dark:border-gray-600 text-gray-400'}`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -122,7 +122,7 @@ function Explore() {
 
       {/* Filters panel */}
       {showFilters && (
-        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex flex-col gap-3">
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex flex-col gap-3">
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-[10px] text-gray-400 uppercase tracking-wide">Precio mínimo</label>
@@ -226,7 +226,7 @@ function Explore() {
           {filtered.map((post, index) => (
             <div
               key={post.id}
-              className={`bg-gray-50 overflow-hidden relative ${index % 3 === 0 ? 'row-span-2' : ''}`}
+              className={`bg-gray-50 dark:bg-gray-800 overflow-hidden relative rounded-sm ${index % 3 === 0 ? 'row-span-2' : ''}`}
               style={{ aspectRatio: index % 3 === 0 ? '3/4' : '1/1' }}
             >
               <button onClick={() => navigate(`/post/${post.id}`)} className="w-full h-full">

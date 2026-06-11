@@ -138,21 +138,21 @@ function UserProfile() {
           <div className="flex gap-6 flex-1 justify-center">
             <div className="flex flex-col items-center">
               <span className="text-base font-semibold text-gray-900 dark:text-white">{posts.length}</span>
-              <span className="text-xs text-gray-400">compras</span>
+              <span className="text-[11px] text-gray-400">compras</span>
             </div>
             <button
               onClick={() => navigate(`/user/${userId}/follow?type=followers`)}
               className="flex flex-col items-center"
             >
               <span className="text-base font-semibold text-gray-900 dark:text-white">{followersCount}</span>
-              <span className="text-xs text-gray-400">seguidores</span>
+              <span className="text-[11px] text-gray-400">seguidores</span>
             </button>
             <button
               onClick={() => navigate(`/user/${userId}/follow?type=following`)}
               className="flex flex-col items-center"
             >
               <span className="text-base font-semibold text-gray-900 dark:text-white">{followingCount}</span>
-              <span className="text-xs text-gray-400">siguiendo</span>
+              <span className="text-[11px] text-gray-400">siguiendo</span>
             </button>
           </div>
         </div>
@@ -165,9 +165,9 @@ function UserProfile() {
               <button
                 onClick={handleFollow}
                 disabled={followLoading}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 ${
                   following
-                    ? 'border border-gray-200 text-gray-700'
+                    ? 'border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200'
                     : 'bg-green-500 text-white'
                 }`}
               >
@@ -175,7 +175,7 @@ function UserProfile() {
               </button>
               <button
                 onClick={handleMessage}
-                className="flex-1 py-2 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200"
+                className="flex-1 py-2 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200"
               >
                 Mensaje
               </button>
