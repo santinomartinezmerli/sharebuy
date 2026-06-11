@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useDarkMode } from '../lib/DarkModeContext'
 import { usePullToRefresh, PullIndicator } from '../hooks/usePullToRefresh'
 
 function Layout({ children }) {
+  const location = useLocation()
   const { pulling, pullDistance, THRESHOLD } = usePullToRefresh(() => {
     const fn = window.__ptrRefresh
     if (fn) { fn().catch?.(e => console.error('PTR error:', e)) } else { window.location.reload() }
@@ -12,30 +13,38 @@ function Layout({ children }) {
   const { dark, toggle } = useDarkMode()
   const [unreadCount, setUnreadCount] = useState(0)
 
+  const fetchUnread = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: convs } = await supabase.from('conversations').select('id').or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    const convIds = convs?.map(c => c.id) ?? []
+    if (convIds.length === 0) { setUnreadCount(0); return }
+
+    const { data: allMsgs } = await supabase.from('messages')
+      .select('id, conversation_id, sender_id, created_at')
+      .in('conversation_id', convIds)
+      .not('sender_id', 'eq', user.id)
+      .order('created_at', { ascending: false }).limit(500)
+
+    const lastRead = JSON.parse(localStorage.getItem('chatLastRead') || '{}')
+    let count = 0
+    for (const msg of allMsgs ?? []) {
+      const lastReadAt = lastRead[msg.conversation_id]
+      if (!lastReadAt || new Date(msg.created_at).getTime() > lastReadAt) count++
+    }
+    setUnreadCount(count)
+  }, [])
+
+  // Re-fetch unread count on every navigation (so badge updates after viewing a chat)
+  useEffect(() => { fetchUnread() }, [location, fetchUnread])
+
+  // Real-time subscription for new messages
   useEffect(() => {
     let channel
-    const fetchUnread = async () => {
+    const setup = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-
-      const { data: convs } = await supabase.from('conversations').select('id').or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-      const convIds = convs?.map(c => c.id) ?? []
-      if (convIds.length === 0) { setUnreadCount(0); return }
-
-      const { data: allMsgs } = await supabase.from('messages')
-        .select('id, conversation_id, sender_id, created_at')
-        .in('conversation_id', convIds)
-        .not('sender_id', 'eq', user.id)
-        .order('created_at', { ascending: false }).limit(500)
-
-      const lastRead = JSON.parse(localStorage.getItem('chatLastRead') || '{}')
-      let count = 0
-      for (const msg of allMsgs ?? []) {
-        const lastReadAt = lastRead[msg.conversation_id]
-        if (!lastReadAt || new Date(msg.created_at).getTime() > lastReadAt) count++
-      }
-      setUnreadCount(count)
-
       channel = supabase.channel('unread-messages')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
           if (payload.new.sender_id !== user.id) {
@@ -48,7 +57,7 @@ function Layout({ children }) {
         })
         .subscribe()
     }
-    fetchUnread()
+    setup()
     return () => { if (channel) supabase.removeChannel(channel) }
   }, [])
 
