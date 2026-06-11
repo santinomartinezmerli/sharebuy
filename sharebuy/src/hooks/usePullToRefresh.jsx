@@ -43,7 +43,8 @@ export function usePullToRefresh(onRefresh) {
     const onTouchEnd = () => {
       if (pullingRef.current && distanceRef.current >= THRESHOLD) {
         window.dispatchEvent(new CustomEvent('ptr-refresh'))
-        try { refreshRef.current() } catch (e) {}
+        const fn = window.__ptrRefresh
+        if (fn) { try { fn() } catch (e) {} } else { window.location.reload() }
       }
       pullingRef.current = false
       setPulling(false)
