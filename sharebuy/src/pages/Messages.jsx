@@ -29,7 +29,37 @@ function Messages() {
         return other && !blockedIds.has(other.id)
       })
 
-      setConversations(filtered)
+      const convIds = filtered.map(c => c.id)
+      const [lastMessagesResult, unreadResult] = await Promise.all([
+        convIds.length > 0
+          ? supabase.from('messages').select('conversation_id, content, created_at, is_image')
+              .in('conversation_id', convIds).order('created_at', { ascending: false }).limit(convIds.length * 2)
+          : { data: [] },
+        convIds.length > 0
+          ? supabase.from('messages').select('conversation_id, id', { count: 'exact', head: false })
+              .in('conversation_id', convIds).is('read_at', null).neq('sender_id', user.id)
+          : { data: [] },
+      ])
+
+      const lastMsgMap = {}
+      const usedIds = new Set()
+      for (const msg of (lastMessagesResult.data ?? []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))) {
+        if (!usedIds.has(msg.conversation_id)) {
+          lastMsgMap[msg.conversation_id] = msg
+          usedIds.add(msg.conversation_id)
+        }
+      }
+
+      const unreadMap = {}
+      for (const msg of (unreadResult.data ?? [])) {
+        unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
+      }
+
+      setConversations(filtered.map(c => ({
+        ...c,
+        lastMessage: lastMsgMap[c.id] ?? null,
+        unreadCount: unreadMap[c.id] ?? 0,
+      })))
       setLoading(false)
     }
     fetch()
@@ -42,7 +72,7 @@ function Messages() {
   return (
     <div className="flex flex-col dark:bg-gray-900 dark:text-white">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-        <button onClick={() => navigate(-1)} className="text-gray-400">
+        <button onClick={() => navigate(-1)} className="text-gray-400 p-1 active:scale-90 transition-transform">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
           </svg>
@@ -69,11 +99,23 @@ function Messages() {
               <button
                 key={conv.id}
                 onClick={() => navigate(`/messages/${conv.id}`)}
-                className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800"
+                className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors active:bg-gray-100 dark:active:bg-gray-700"
               >
                 <Avatar url={other?.avatar_url} username={other?.username} size="lg" />
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{other?.username}</p>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{other?.username}</p>
+                    {conv.unreadCount > 0 && (
+                      <span className="flex-shrink-0 bg-green-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                        {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  {conv.lastMessage && (
+                    <p className="text-xs text-gray-400 truncate mt-0.5">
+                      {conv.lastMessage.is_image ? '📷 Foto' : conv.lastMessage.content}
+                    </p>
+                  )}
                 </div>
               </button>
             )

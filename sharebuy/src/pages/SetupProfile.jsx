@@ -103,7 +103,7 @@ function SetupProfile() {
   }
 
   const handleFinish = () => {
-    navigate('/feed', { replace: true })
+    window.location.href = '/feed'
   }
 
   if (step === 'suggestions') {

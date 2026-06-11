@@ -222,7 +222,7 @@ function Feed() {
     if (data) { setPosts(data); setHasMore(data.length >= PAGE_SIZE); setPage(1) }
   }, [])
 
-  const { pulling, pullDistance, THRESHOLD, handlers } = usePullToRefresh(refreshFeed)
+  const { pulling, pullDistance, THRESHOLD } = usePullToRefresh(refreshFeed)
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -378,7 +378,7 @@ function Feed() {
           <p className="text-xs text-gray-400 text-center">¡Seguí a otros usuarios para ver sus compras acá!</p>
         </div>
       ) : (
-        <div {...handlers}>
+        <div>
           <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
           {posts.map(post => (
             <PostCard key={post.id} post={post} currentUserId={currentUserId} onCommentClick={setCommentPostId} />

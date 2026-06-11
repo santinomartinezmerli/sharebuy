@@ -1,47 +1,69 @@
-import { useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 export function usePullToRefresh(onRefresh) {
   const [pulling, setPulling] = useState(false)
   const [pullDistance, setPullDistance] = useState(0)
   const startY = useRef(0)
   const pullingRef = useRef(false)
+  const distanceRef = useRef(0)
+  const refreshRef = useRef(onRefresh)
+  refreshRef.current = onRefresh
 
   const THRESHOLD = 70
   const MAX_PULL = 100
 
-  const handlers = {
-    onTouchStart(e) {
-      if (!pullingRef.current && window.scrollY === 0 && e.currentTarget.scrollTop === 0) {
+  useEffect(() => {
+    const getScrollTop = () => {
+      const main = document.querySelector('main')
+      if (main) return main.scrollTop
+      return document.documentElement.scrollTop || window.scrollY
+    }
+
+    const onTouchStart = (e) => {
+      if (!pullingRef.current && getScrollTop() === 0) {
         startY.current = e.touches[0].clientY
         pullingRef.current = true
       }
-    },
+    }
 
-    onTouchMove(e) {
+    const onTouchMove = (e) => {
       if (!pullingRef.current) return
       const diff = e.touches[0].clientY - startY.current
       if (diff > 0) {
-        const distance = Math.min(diff * 0.4, MAX_PULL)
-        setPullDistance(distance)
+        const dist = Math.min(diff * 0.4, MAX_PULL)
+        distanceRef.current = dist
+        setPullDistance(dist)
         setPulling(true)
       } else {
         setPulling(false)
         setPullDistance(0)
+        distanceRef.current = 0
         pullingRef.current = false
       }
-    },
+    }
 
-    onTouchEnd() {
-      if (pullingRef.current && pullDistance >= THRESHOLD) {
-        onRefresh()
+    const onTouchEnd = () => {
+      if (pullingRef.current && distanceRef.current >= THRESHOLD) {
+        refreshRef.current()
       }
       pullingRef.current = false
       setPulling(false)
       setPullDistance(0)
-    },
-  }
+      distanceRef.current = 0
+    }
 
-  return { pulling, pullDistance, THRESHOLD, handlers }
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchmove', onTouchMove, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchmove', onTouchMove)
+      document.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
+
+  return { pulling, pullDistance, THRESHOLD }
 }
 
 export function PullIndicator({ pulling, pullDistance, threshold }) {
@@ -50,20 +72,17 @@ export function PullIndicator({ pulling, pullDistance, threshold }) {
   const progress = Math.min(pullDistance / threshold, 1)
 
   return (
-    <div
-      className="flex items-center justify-center h-0 overflow-visible transition-none"
-      style={{ height: 0 }}
-    >
+    <div className="flex items-center justify-center h-0 overflow-visible" style={{ height: 0 }}>
       <div
-        className="flex items-center justify-center"
+        className="flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700"
         style={{
-          transform: `translateY(${Math.max(pullDistance - 20, 0)}px)`,
+          transform: `translateY(${Math.max(pullDistance - 18, 0)}px)`,
           opacity: Math.min(progress * 1.5, 1),
           transition: pullDistance === 0 ? 'opacity 0.2s, transform 0.2s' : 'none',
         }}
       >
         <svg
-          className={`w-6 h-6 ${progress >= 1 ? 'text-green-500' : 'text-gray-400'}`}
+          className={`w-5 h-5 ${progress >= 1 ? 'text-green-500' : 'text-gray-400'}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

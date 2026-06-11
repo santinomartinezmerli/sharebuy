@@ -30,7 +30,7 @@ function Explore() {
     setLikedIds(new Set(likesResult.data?.map(l => l.post_id) ?? []))
   }, [])
 
-  const { pulling, pullDistance, THRESHOLD, handlers } = usePullToRefresh(refreshExplore)
+  const { pulling, pullDistance, THRESHOLD } = usePullToRefresh(refreshExplore)
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -243,7 +243,7 @@ function Explore() {
           subtitle={search || filters.brand || filters.minPrice ? 'Probá con otro término o ajustá los filtros' : 'Las compras de la comunidad aparecen acá'}
         />
       ) : (
-        <div {...handlers}>
+        <div>
           <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
           <div className="grid grid-cols-2 gap-0.5 p-0.5">
             {filtered.map((post, index) => (

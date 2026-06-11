@@ -6,9 +6,17 @@ function Landing() {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+
+  const passwordChecks = {
+    length: password.length >= 6,
+    upper: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+  }
+  const allChecksOk = mode !== 'register' || Object.values(passwordChecks).every(Boolean)
 
   const handleGoogleLogin = async () => {
     await supabase.auth.signInWithOAuth({
@@ -27,8 +35,10 @@ function Landing() {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setError('Email o contraseña incorrectos')
     } else {
+      if (!allChecksOk) { setError('La contraseña no cumple los requisitos'); setLoading(false); return }
+      if (password !== confirmPassword) { setError('Las contraseñas no coinciden'); setLoading(false); return }
       const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setError('No se pudo crear la cuenta')
+      if (error) setError(error.message === 'User already registered' ? 'Este email ya está registrado' : 'No se pudo crear la cuenta')
       else setSuccess('Revisá tu email para confirmar tu cuenta')
     }
 
@@ -49,7 +59,7 @@ function Landing() {
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors active:scale-[0.98]"
           >
             <img src="https://www.google.com/favicon.ico" className="w-4 h-4" />
             Continuar con Google
@@ -74,20 +84,50 @@ function Landing() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="Email"
-              className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent"
+              className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent transition-colors"
             />
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Contraseña"
-              className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent"
-            />
+            <div>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder={mode === 'register' ? 'Crear contraseña' : 'Contraseña'}
+                className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent transition-colors"
+              />
+              {mode === 'register' && password.length > 0 && (
+                <div className="flex gap-3 mt-2">
+                  {[
+                    { key: 'length', label: '6+ caracteres' },
+                    { key: 'upper', label: 'Mayúscula' },
+                    { key: 'number', label: 'Número' },
+                  ].map(({ key, label }) => (
+                    <span key={key} className={`text-[10px] flex items-center gap-1 ${passwordChecks[key] ? 'text-green-500' : 'text-gray-400'}`}>
+                      <svg className={`w-3 h-3 ${passwordChecks[key] ? 'text-green-500' : 'text-gray-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        {passwordChecks[key]
+                          ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                        }
+                      </svg>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {mode === 'register' && (
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Confirmar contraseña"
+                className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-sm outline-none focus:border-green-400 bg-transparent transition-colors"
+              />
+            )}
             <button
               onClick={handleSubmit}
-              disabled={loading || !email || !password}
-              className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                email && password && !loading
+              disabled={loading || !email || !password || (mode === 'register' && (!allChecksOk || password !== confirmPassword))}
+              className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors active:scale-[0.98] ${
+                email && password && !loading && (mode !== 'register' || (allChecksOk && password === confirmPassword))
                   ? 'bg-green-500 text-white hover:bg-green-600'
                   : 'bg-gray-100 text-gray-400'
               }`}
@@ -97,7 +137,7 @@ function Landing() {
           </div>
 
           <button
-            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null) }}
+            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null); setConfirmPassword('') }}
             className="text-xs text-gray-400"
           >
             {mode === 'login'
