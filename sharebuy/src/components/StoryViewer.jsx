@@ -91,11 +91,17 @@ function StoryViewer({ groups, groupIndex, onClose, onGroupChange }) {
   }, [paused, current, groupIndex])
 
   const handleTouchStart = (e) => {
+    e.stopPropagation()
     touchStartTime.current = Date.now()
     setPaused(true)
   }
 
+  const handleTouchMove = (e) => {
+    e.stopPropagation()
+  }
+
   const handleTouchEnd = (e) => {
+    e.stopPropagation()
     const duration = Date.now() - touchStartTime.current
     setPaused(false)
 
@@ -145,6 +151,7 @@ function StoryViewer({ groups, groupIndex, onClose, onGroupChange }) {
       <div
         className="relative w-full max-w-md h-full flex flex-col overflow-hidden"
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
