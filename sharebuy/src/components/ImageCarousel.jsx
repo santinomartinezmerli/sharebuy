@@ -83,15 +83,10 @@ function ImageCarousel({ images, brand, className = '' }) {
     if (dragging) handleTouchEnd()
   }
 
-  // Calculate drag offset as percentage of container width
-  const dragOffsetPct = dragging
-    ? (dragX / getContainerWidth()) * 100
-    : 0
-
-  // Apply resistance at edges (first or last image)
   const isAtStart = current === 0 && dragX > 0
   const isAtEnd = current === urls.length - 1 && dragX < 0
-  const effectiveOffset = (isAtStart || isAtEnd) ? dragOffsetPct * 0.25 : dragOffsetPct
+  const dragPct = dragging ? (dragX / getContainerWidth()) * 100 : 0
+  const effectiveOffset = (isAtStart || isAtEnd) ? dragPct * 0.25 : dragPct
 
   const translateX = `${(-current * 100) + effectiveOffset}%`
 
