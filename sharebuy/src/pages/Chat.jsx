@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Avatar from '../components/Avatar'
@@ -22,7 +22,6 @@ function Chat() {
   const [readMap, setReadMap] = useState({})
   const fileInputRef = useRef(null)
   const typingTimeoutRef = useRef(null)
-  const messagesRef = useRef(null)
 
   // Mark conversation as read immediately on mount (not just after async fetch)
   useEffect(() => {
@@ -104,11 +103,6 @@ function Chat() {
 
     return () => { supabase.removeChannel(channel) }
   }, [conversationId, currentUserId])
-
-  useLayoutEffect(() => {
-    if (messages.length === 0 || !messagesRef.current) return
-    messagesRef.current.scrollTop = messagesRef.current.scrollHeight
-  }, [messages, otherTyping])
 
   const handleSend = async () => {
     const text = newMessage.trim()
@@ -230,13 +224,13 @@ function Chat() {
         </button>
       </div>
 
-      <div ref={messagesRef} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col-reverse gap-2">
         {messages.length === 0 && (
           <p className="text-center text-xs text-gray-400 mt-4">
             Es el comienzo de tu conversación con {otherUser?.username}
           </p>
         )}
-        {messages.map(msg => {
+        {[...messages].reverse().map(msg => {
           const isMine = msg.sender_id === currentUserId
           const isImage = msg.is_image || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(msg.content)
           const isEditing = editingMsgId === msg.id
@@ -294,12 +288,15 @@ function Chat() {
             </div>
           )
         })}
-        {otherTyping && (
-          <div className="self-start bg-gray-100 rounded-2xl px-3 py-2 text-sm text-gray-500 rounded-bl-sm">
+      </div>
+
+      {otherTyping && (
+        <div className="px-4 py-1.5">
+          <div className="self-start bg-gray-100 rounded-2xl px-3 py-2 text-sm text-gray-500 rounded-bl-sm inline-block">
             {otherUser?.username} está escribiendo...
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {uploadError && (
         <div className="px-4 py-2 bg-red-50 border-t border-red-200 text-xs text-red-600">
