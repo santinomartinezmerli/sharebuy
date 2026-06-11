@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
-import { registerRefresh } from '../lib/refreshRegistry'
+
 
 function Messages() {
   const navigate = useNavigate()
@@ -30,28 +30,28 @@ function Messages() {
     })
 
     const convIds = filtered.map(c => c.id)
-    const [lastMessagesResult, unreadResult] = await Promise.all([
-      convIds.length > 0
-        ? supabase.from('messages').select('conversation_id, content, created_at, is_image')
-            .in('conversation_id', convIds).order('created_at', { ascending: false }).limit(convIds.length * 2)
-        : { data: [] },
-      convIds.length > 0
-        ? supabase.from('messages').select('conversation_id, id').in('conversation_id', convIds).is('read_at', null).neq('sender_id', user.id)
-        : { data: [] },
-    ])
-
     const lastMsgMap = {}
-    const usedIds = new Set()
-    for (const msg of (lastMessagesResult.data ?? []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))) {
-      if (!usedIds.has(msg.conversation_id)) {
-        lastMsgMap[msg.conversation_id] = msg
-        usedIds.add(msg.conversation_id)
-      }
-    }
-
     const unreadMap = {}
-    for (const msg of (unreadResult.data ?? [])) {
-      unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
+
+    if (convIds.length > 0) {
+      const { data: allMsgs } = await supabase.from('messages')
+        .select('conversation_id, id, sender_id, created_at, content, is_image')
+        .in('conversation_id', convIds).order('created_at', { ascending: false }).limit(1000)
+
+      let lastRead = {}
+      try { lastRead = JSON.parse(localStorage.getItem('chatLastRead') || '{}') } catch (e) {}
+      const seenConv = new Set()
+
+      for (const msg of allMsgs ?? []) {
+        if (!seenConv.has(msg.conversation_id)) {
+          lastMsgMap[msg.conversation_id] = msg
+          seenConv.add(msg.conversation_id)
+        }
+        const lastReadAt = lastRead[msg.conversation_id]
+        if (msg.sender_id !== user.id && (!lastReadAt || new Date(msg.created_at).getTime() > lastReadAt)) {
+          unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
+        }
+      }
     }
 
     setConversations(filtered.map(c => ({
@@ -69,7 +69,12 @@ function Messages() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
-  useEffect(() => registerRefresh(fetchData), [])
+  useEffect(() => {
+    window.__ptrRefresh = fetchData
+    const handler = () => fetchData()
+    window.addEventListener('ptr-refresh', handler)
+    return () => { window.removeEventListener('ptr-refresh', handler); window.__ptrRefresh = null }
+  }, [])
 
   if (loading) return (
     <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>

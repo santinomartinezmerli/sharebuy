@@ -3,12 +3,11 @@ import { NavLink } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useDarkMode } from '../lib/DarkModeContext'
 import { usePullToRefresh, PullIndicator } from '../hooks/usePullToRefresh'
-import { getRefresh } from '../lib/refreshRegistry'
 
 function Layout({ children }) {
   const { pulling, pullDistance, THRESHOLD } = usePullToRefresh(() => {
-    const fn = getRefresh()
-    if (fn) fn()
+    const fn = window.__ptrRefresh
+    if (fn) { fn().catch?.(e => console.error('PTR error:', e)) } else { window.location.reload() }
   })
   const { dark, toggle } = useDarkMode()
   const [unreadCount, setUnreadCount] = useState(0)
@@ -19,20 +18,32 @@ function Layout({ children }) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { count } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
+      const { data: convs } = await supabase.from('conversations').select('id').or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+      const convIds = convs?.map(c => c.id) ?? []
+      if (convIds.length === 0) { setUnreadCount(0); return }
+
+      const { data: allMsgs } = await supabase.from('messages')
+        .select('id, conversation_id, sender_id, created_at')
+        .in('conversation_id', convIds)
         .not('sender_id', 'eq', user.id)
-        .is('read_at', null)
-        .in('conversation_id', (
-          await supabase.from('conversations').select('id').or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-        ).data?.map(c => c.id) ?? [])
-      setUnreadCount(count ?? 0)
+        .order('created_at', { ascending: false }).limit(500)
+
+      const lastRead = JSON.parse(localStorage.getItem('chatLastRead') || '{}')
+      let count = 0
+      for (const msg of allMsgs ?? []) {
+        const lastReadAt = lastRead[msg.conversation_id]
+        if (!lastReadAt || new Date(msg.created_at).getTime() > lastReadAt) count++
+      }
+      setUnreadCount(count)
 
       channel = supabase.channel('unread-messages')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
           if (payload.new.sender_id !== user.id) {
-            setUnreadCount(prev => prev + 1)
+            const lr = JSON.parse(localStorage.getItem('chatLastRead') || '{}')
+            const lastReadAt = lr[payload.new.conversation_id]
+            if (!lastReadAt || new Date(payload.new.created_at).getTime() > lastReadAt) {
+              setUnreadCount(prev => prev + 1)
+            }
           }
         })
         .subscribe()

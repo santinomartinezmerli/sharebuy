@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import EmptyState from '../components/EmptyState'
-import { registerRefresh } from '../lib/refreshRegistry'
-
 const CATEGORIES = ['Todo', 'Ropa', 'Tecnología', 'Hogar', 'Deporte', 'Belleza']
 
 function Explore() {
@@ -30,7 +28,12 @@ function Explore() {
     setLikedIds(new Set(likesResult.data?.map(l => l.post_id) ?? []))
   }, [])
 
-  useEffect(() => registerRefresh(refreshExplore), [refreshExplore])
+  useEffect(() => {
+    window.__ptrRefresh = refreshExplore
+    const handler = () => refreshExplore()
+    window.addEventListener('ptr-refresh', handler)
+    return () => { window.removeEventListener('ptr-refresh', handler); window.__ptrRefresh = null }
+  }, [refreshExplore])
 
   useEffect(() => {
     const fetchPosts = async () => {

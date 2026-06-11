@@ -9,7 +9,7 @@ export function usePullToRefresh(onRefresh) {
   const refreshRef = useRef(onRefresh)
   refreshRef.current = onRefresh
 
-  const THRESHOLD = 70
+  const THRESHOLD = 60
   const MAX_PULL = 100
 
   useEffect(() => {
@@ -31,20 +31,19 @@ export function usePullToRefresh(onRefresh) {
       const diff = e.touches[0].clientY - startY.current
       if (diff > 0) {
         const dist = Math.min(diff * 0.4, MAX_PULL)
-        distanceRef.current = dist
+        if (dist > distanceRef.current) distanceRef.current = dist
         setPullDistance(dist)
         setPulling(true)
       } else {
-        setPulling(false)
         setPullDistance(0)
-        distanceRef.current = 0
-        pullingRef.current = false
+        setPulling(false)
       }
     }
 
     const onTouchEnd = () => {
       if (pullingRef.current && distanceRef.current >= THRESHOLD) {
-        refreshRef.current()
+        window.dispatchEvent(new CustomEvent('ptr-refresh'))
+        try { refreshRef.current() } catch (e) {}
       }
       pullingRef.current = false
       setPulling(false)

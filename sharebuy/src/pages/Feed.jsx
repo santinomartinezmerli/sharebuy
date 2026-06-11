@@ -5,7 +5,6 @@ import StoryViewer from '../components/StoryViewer'
 import ImageCarousel from '../components/ImageCarousel'
 import Avatar from '../components/Avatar'
 import CommentSheet from '../components/CommentSheet'
-import { registerRefresh } from '../lib/refreshRegistry'
 
 function PostCard({ post, currentUserId, onCommentClick }) {
   const [liked, setLiked] = useState(false)
@@ -222,7 +221,12 @@ function Feed() {
     if (data) { setPosts(data); setHasMore(data.length >= PAGE_SIZE); setPage(1) }
   }, [])
 
-  useEffect(() => registerRefresh(refreshFeed), [refreshFeed])
+  useEffect(() => {
+    window.__ptrRefresh = refreshFeed
+    const handler = () => refreshFeed()
+    window.addEventListener('ptr-refresh', handler)
+    return () => { window.removeEventListener('ptr-refresh', handler); window.__ptrRefresh = null }
+  }, [refreshFeed])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()

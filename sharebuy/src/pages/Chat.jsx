@@ -24,6 +24,13 @@ function Chat() {
   const fileInputRef = useRef(null)
   const typingTimeoutRef = useRef(null)
 
+  // Mark conversation as read immediately on mount (not just after async fetch)
+  useEffect(() => {
+    const prev = JSON.parse(localStorage.getItem('chatLastRead') || '{}')
+    prev[conversationId] = Date.now()
+    localStorage.setItem('chatLastRead', JSON.stringify(prev))
+  }, [conversationId])
+
   useEffect(() => {
     const fetch = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -47,15 +54,15 @@ function Chat() {
 
       setMessages(msgs ?? [])
 
-      // Mark unread messages as read
+      // Mark unread messages as read in DB (if column exists)
       const unreadIds = (msgs ?? [])
         .filter(m => m.sender_id !== user.id && !m.read_at)
         .map(m => m.id)
-
       if (unreadIds.length > 0) {
-        await supabase.from('messages')
+        const { error } = await supabase.from('messages')
           .update({ read_at: new Date().toISOString() })
           .in('id', unreadIds)
+        if (error) console.warn('read_at update failed (column may not exist yet)')
       }
 
       setLoading(false)
@@ -80,6 +87,10 @@ function Chat() {
           await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('id', msg.id)
           setReadMap(prev => ({ ...prev, [msg.id]: true }))
         }
+        // Keep localStorage timestamp fresh for badge clearance
+        const prev = JSON.parse(localStorage.getItem('chatLastRead') || '{}')
+        prev[conversationId] = Date.now()
+        localStorage.setItem('chatLastRead', JSON.stringify(prev))
         setOtherTyping(false)
       })
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
@@ -323,7 +334,7 @@ function Chat() {
           onKeyDown={handleKeyDown}
           placeholder="Escribí un mensaje..."
           rows={1}
-          className="flex-1 bg-gray-50 rounded-2xl px-4 py-2 text-sm outline-none border border-gray-200 focus:border-green-400 resize-none max-h-20"
+          className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-2xl px-4 py-2 text-sm outline-none border border-gray-200 dark:border-gray-600 focus:border-green-400 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none max-h-20"
         />
         <button
           onClick={handleSend}
