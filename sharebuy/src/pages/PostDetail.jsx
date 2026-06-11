@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ImageCarousel from '../components/ImageCarousel'
 import Avatar from '../components/Avatar'
 
 function PostDetail() {
   const { postId } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const commentInputRef = useRef(null)
   const [post, setPost] = useState(null)
   const [reviews, setReviews] = useState([])
   const [comments, setComments] = useState([])
@@ -62,6 +64,12 @@ function PostDetail() {
     }
     fetch()
   }, [postId])
+
+  useEffect(() => {
+    if (!loading && searchParams.get('comment') === 'true') {
+      commentInputRef.current?.focus()
+    }
+  }, [loading, searchParams])
 
   const handleComment = async () => {
     if (!newComment.trim()) return
@@ -274,13 +282,13 @@ function PostDetail() {
                 </svg>
               </button>
               {post.for_sale && (
-                <span className="bg-green-50 text-green-700 text-xs font-medium px-2 py-1 rounded-full border border-green-200 flex-shrink-0 ml-2">
+                <span className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium px-2 py-1 rounded-full border border-green-200 dark:border-green-700 flex-shrink-0 ml-2">
                   En venta
                 </span>
               )}
             </div>
           </div>
-          {post.caption && <p className="text-sm text-gray-500 mb-2">{post.caption}</p>}
+          {post.caption && <p className="text-sm text-gray-500 dark:text-gray-300 mb-2">{post.caption}</p>}
           <div className="flex items-center gap-3 flex-wrap">
             {post.price && <span className="text-green-500 font-medium text-sm">${post.price}</span>}
             {post.for_sale && post.sale_price && (
@@ -316,22 +324,22 @@ function PostDetail() {
 
         {/* Rating */}
         {reviews.length > 0 && (
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-4">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-4">
             <div className="flex items-center gap-1">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-yellow-400 fill-yellow-400" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
               </svg>
-              <span className="text-sm font-medium text-gray-900">{avgRating}</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{avgRating}</span>
             </div>
             <span className="text-xs text-gray-400">{reviews.length} reviews</span>
             {recommendedPct !== null && (
-              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">{recommendedPct}% lo recomiendan</span>
+              <span className="text-xs bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">{recommendedPct}% lo recomiendan</span>
             )}
           </div>
         )}
 
         {/* Comentarios */}
-        <div className="px-4 py-3 border-b border-gray-100">
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
           <p className="text-xs text-gray-400 uppercase tracking-wide mb-3">
             {comments.length === 0 ? 'Sin comentarios' : `${comments.length} comentarios`}
           </p>
@@ -347,7 +355,7 @@ function PostDetail() {
                       <input
                         value={editCommentText}
                         onChange={e => setEditCommentText(e.target.value)}
-                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-green-400"
+                        className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 outline-none focus:border-green-400 dark:bg-gray-800 dark:text-white"
                         autoFocus
                       />
                       <div className="flex gap-2">
@@ -357,8 +365,8 @@ function PostDetail() {
                     </div>
                   ) : (
                     <div>
-                      <span className="text-sm font-medium text-gray-900">{comment.profiles?.username} </span>
-                      <span className="text-sm text-gray-600">{comment.content}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{comment.profiles?.username} </span>
+                      <span className="text-sm text-gray-600 dark:text-gray-300">{comment.content}</span>
                       <p className="text-xs text-gray-400 mt-0.5">{new Date(comment.created_at).toLocaleDateString('es-AR')}</p>
                     </div>
                   )}
@@ -392,7 +400,7 @@ function PostDetail() {
                 <div key={review.id} className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
                     <Avatar url={review.profiles?.avatar_url} username={review.profiles?.username} size="sm" />
-                    <span className="text-sm font-medium text-gray-900">{review.profiles?.username}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{review.profiles?.username}</span>
                     <div className="flex gap-0.5">
                       {[1,2,3,4,5].map(s => (
                         <svg key={s} xmlns="http://www.w3.org/2000/svg" className={`w-3 h-3 ${s <= review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -422,7 +430,7 @@ function PostDetail() {
                         value={editReviewContent}
                         onChange={e => setEditReviewContent(e.target.value)}
                         rows={2}
-                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-green-400 resize-none"
+                        className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 outline-none focus:border-green-400 resize-none dark:bg-gray-800 dark:text-white"
                       />
                       <div className="flex gap-2">
                         <button onClick={() => handleEditReview(review.id)} className="text-xs text-green-500 font-medium">Guardar</button>
@@ -431,7 +439,7 @@ function PostDetail() {
                     </div>
                   ) : (
                     <>
-                      {review.content && <p className="text-sm text-gray-600 pl-9">{review.content}</p>}
+                      {review.content && <p className="text-sm text-gray-600 dark:text-gray-300 pl-9">{review.content}</p>}
                       {review.recommended !== null && (
                         <p className="text-xs pl-9">{review.recommended ? '👍 Lo recomienda' : '👎 No lo recomienda'}</p>
                       )}
@@ -451,7 +459,8 @@ function PostDetail() {
           onChange={e => setNewComment(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleComment()}
           placeholder="Escribí un comentario..."
-          className="flex-1 bg-gray-50 rounded-full px-4 py-2 text-sm outline-none border border-gray-200 focus:border-green-400"
+          ref={commentInputRef}
+          className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-full px-4 py-2 text-sm outline-none border border-gray-200 dark:border-gray-600 focus:border-green-400 dark:text-white"
         />
         <button
           onClick={handleComment}
