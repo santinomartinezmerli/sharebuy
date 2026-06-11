@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
 import { SkeletonList } from '../components/Skeleton'
+import { motion } from 'framer-motion'
 
 
 function Messages() {
@@ -106,8 +107,8 @@ function Messages() {
           {conversations.map(conv => {
             const other = conv.user1_id === currentUserId ? conv.user2 : conv.user1
             return (
-              <button
-                key={conv.id}
+              <motion.button
+                key={conv.id} whileTap={{ scale: 0.98 }}
                 onClick={() => navigate(`/messages/${conv.id}`)}
                 className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors active:bg-gray-100 dark:active:bg-gray-700"
               >
@@ -131,7 +132,7 @@ function Messages() {
                     </p>
                   )}
                 </div>
-              </button>
+              </motion.button>
             )
           })}
         </div>

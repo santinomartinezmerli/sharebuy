@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { SkeletonProfile } from '../components/Skeleton'
+import { motion } from 'framer-motion'
 
 function Profile() {
   const navigate = useNavigate()
@@ -141,14 +142,14 @@ function Profile() {
       ) : (
         <div className="grid grid-cols-3 gap-1 p-1">
           {grid.map(post => (
-            <button key={post.id} onClick={() => navigate(`/post/${post.id}`)}
+            <motion.button key={post.id} whileTap={{ scale: 0.95 }} onClick={() => navigate(`/post/${post.id}`)}
               className="aspect-square bg-gray-50 dark:bg-gray-800 overflow-hidden rounded-sm active:opacity-80 transition-opacity">
               {(post.image_urls?.[0] || post.image_url) ? (
                 <img src={post.image_urls?.[0] ?? post.image_url} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-3xl">🛍️</div>
               )}
-            </button>
+            </motion.button>
           ))}
         </div>
       )}

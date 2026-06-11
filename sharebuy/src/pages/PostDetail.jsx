@@ -17,7 +17,6 @@ function PostDetail() {
   const [newComment, setNewComment] = useState('')
   const [currentUserId, setCurrentUserId] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [sending, setSending] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -76,21 +75,28 @@ function PostDetail() {
   }, [loading, searchParams])
 
   const handleComment = async () => {
-    if (!newComment.trim()) return
-    setSending(true)
+    const text = newComment.trim()
+    if (!text) return
+
+    const tempId = `temp-${Date.now()}`
+    setComments(prev => [...prev, {
+      id: tempId, post_id: postId, user_id: currentUserId, content: text, created_at: new Date().toISOString(),
+      profiles: { username: 'tú', avatar_url: null }
+    }])
+    setNewComment('')
+    setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
 
     const { data, error } = await supabase
       .from('comments')
-      .insert({ post_id: postId, user_id: currentUserId, content: newComment.trim() })
+      .insert({ post_id: postId, user_id: currentUserId, content: text })
       .select('*, profiles(username, avatar_url)')
       .single()
 
-    if (!error) {
-      setComments(prev => [...prev, data])
-      setNewComment('')
-      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+    if (error) {
+      setComments(prev => prev.filter(c => c.id !== tempId))
+    } else if (data) {
+      setComments(prev => prev.map(c => c.id === tempId ? data : c))
     }
-    setSending(false)
   }
 
   const handleDeletePost = async () => {
@@ -150,12 +156,14 @@ function PostDetail() {
   }
 
   const handleSave = async () => {
-    if (saved) {
+    const wasSaved = saved
+    setSaved(!wasSaved)
+    if (wasSaved) {
       const { error } = await supabase.from('saves').delete().eq('post_id', postId).eq('user_id', currentUserId)
-      if (!error) setSaved(false)
+      if (error) setSaved(true)
     } else {
       const { error } = await supabase.from('saves').insert({ post_id: postId, user_id: currentUserId })
-      if (!error) setSaved(true)
+      if (error) setSaved(false)
     }
   }
 
@@ -474,8 +482,8 @@ function PostDetail() {
         />
         <button
           onClick={handleComment}
-          disabled={sending || !newComment.trim()}
-          className={`text-sm font-medium transition-colors ${newComment.trim() && !sending ? 'text-green-500' : 'text-gray-300'}`}
+          disabled={!newComment.trim()}
+          className={`text-sm font-medium transition-colors ${newComment.trim() ? 'text-green-500' : 'text-gray-300'}`}
         >
           Enviar
         </button>

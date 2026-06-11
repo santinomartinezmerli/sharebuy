@@ -12,7 +12,6 @@ function PostCard({ post, currentUserId, onCommentClick }) {
   const [likesCount, setLikesCount] = useState(0)
   const [saved, setSaved] = useState(false)
   const [liking, setLiking] = useState(false)
-  const [saving, setSaving] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -60,15 +59,15 @@ function PostCard({ post, currentUserId, onCommentClick }) {
 
   const handleSave = async (e) => {
     e.stopPropagation()
-    setSaving(true)
-    if (saved) {
+    const wasSaved = saved
+    setSaved(!wasSaved)
+    if (wasSaved) {
       const { error } = await supabase.from('saves').delete().eq('post_id', post.id).eq('user_id', currentUserId)
-      if (!error) setSaved(false)
+      if (error) setSaved(true)
     } else {
       const { error } = await supabase.from('saves').insert({ post_id: post.id, user_id: currentUserId })
-      if (!error) setSaved(true)
+      if (error) setSaved(false)
     }
-    setSaving(false)
   }
 
   const imageUrls = (post.image_urls && post.image_urls.length > 0)
@@ -135,7 +134,7 @@ function PostCard({ post, currentUserId, onCommentClick }) {
             </svg>
           </button>
         </div>
-        <button onClick={handleSave} disabled={saving} className="ml-auto disabled:opacity-50 p-1 -mr-1 active:scale-95 transition-transform">
+        <button onClick={handleSave} className="ml-auto p-1 -mr-1 active:scale-95 transition-transform">
           <svg xmlns="http://www.w3.org/2000/svg" className={`w-[22px] h-[22px] ${saved ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400 dark:text-gray-500'}`} viewBox="0 0 24 24" fill={saved ? 'currentColor' : 'none'} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>

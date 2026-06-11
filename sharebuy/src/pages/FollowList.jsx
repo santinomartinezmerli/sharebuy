@@ -52,16 +52,19 @@ function FollowList() {
   }, [userId, type])
 
   const handleFollow = async (targetId) => {
-    if (followingMap[targetId]) {
-      await supabase.from('follows').delete()
+    const wasFollowing = followingMap[targetId]
+    setFollowingMap(prev => ({ ...prev, [targetId]: !wasFollowing }))
+
+    if (wasFollowing) {
+      const { error } = await supabase.from('follows').delete()
         .eq('follower_id', currentUserId)
         .eq('following_id', targetId)
-      setFollowingMap(prev => ({ ...prev, [targetId]: false }))
+      if (error) setFollowingMap(prev => ({ ...prev, [targetId]: true }))
     } else {
-      await supabase.from('follows').insert({
+      const { error } = await supabase.from('follows').insert({
         follower_id: currentUserId, following_id: targetId
       })
-      setFollowingMap(prev => ({ ...prev, [targetId]: true }))
+      if (error) setFollowingMap(prev => ({ ...prev, [targetId]: false }))
     }
   }
 

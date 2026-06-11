@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import EmptyState from '../components/EmptyState'
+import { motion } from 'framer-motion'
 const CATEGORIES = ['Todo', 'Ropa', 'Tecnología', 'Hogar', 'Deporte', 'Belleza']
 
 function Explore() {
@@ -254,7 +255,7 @@ function Explore() {
                 className={`bg-gray-50 dark:bg-gray-800 overflow-hidden relative rounded-sm ${index % 3 === 0 ? 'row-span-2' : ''}`}
                 style={{ aspectRatio: index % 3 === 0 ? '3/4' : '1/1' }}
               >
-                <button onClick={() => navigate(`/post/${post.id}`)} className="w-full h-full active:opacity-80 transition-opacity">
+                <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate(`/post/${post.id}`)} className="w-full h-full active:opacity-80 transition-opacity">
                   {(post.image_urls?.[0] || post.image_url) ? (
                     <img src={post.image_urls?.[0] ?? post.image_url} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
                   ) : (
@@ -275,7 +276,7 @@ function Explore() {
                     <p className="text-white text-xs font-medium truncate">{post.product}</p>
                     {post.price && <p className="text-green-300 text-xs font-medium">${post.price}</p>}
                   </div>
-                </button>
+                </motion.button>
 
                 <button
                   onClick={e => handleLike(e, post.id)}

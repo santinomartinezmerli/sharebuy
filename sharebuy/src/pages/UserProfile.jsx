@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { SkeletonProfile } from '../components/Skeleton'
+import { motion } from 'framer-motion'
 
 function UserProfile() {
   const { userId } = useParams()
@@ -14,7 +15,6 @@ function UserProfile() {
   const [followingCount, setFollowingCount] = useState(0)
   const [currentUserId, setCurrentUserId] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [followLoading, setFollowLoading] = useState(false)
 
   useEffect(() => {
     const fetch = async () => {
@@ -60,22 +60,28 @@ function UserProfile() {
   }, [userId])
 
   const handleFollow = async () => {
-    setFollowLoading(true)
-    if (following) {
-      await supabase.from('follows').delete()
+    const wasFollowing = following
+    setFollowing(!wasFollowing)
+    setFollowersCount(prev => prev + (wasFollowing ? -1 : 1))
+
+    if (wasFollowing) {
+      const { error } = await supabase.from('follows').delete()
         .eq('follower_id', currentUserId)
         .eq('following_id', userId)
-      setFollowing(false)
-      setFollowersCount(prev => prev - 1)
+      if (error) {
+        setFollowing(wasFollowing)
+        setFollowersCount(prev => prev + 1)
+      }
     } else {
-      await supabase.from('follows').insert({
+      const { error } = await supabase.from('follows').insert({
         follower_id: currentUserId,
         following_id: userId
       })
-      setFollowing(true)
-      setFollowersCount(prev => prev + 1)
+      if (error) {
+        setFollowing(wasFollowing)
+        setFollowersCount(prev => prev - 1)
+      }
     }
-    setFollowLoading(false)
   }
 
   const handleMessage = async () => {
@@ -163,14 +169,13 @@ function UserProfile() {
             <div className="flex gap-3">
               <button
                 onClick={handleFollow}
-                disabled={followLoading}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 ${
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
                   following
                     ? 'border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200'
                     : 'bg-green-500 text-white'
                 }`}
               >
-                {followLoading ? '...' : (following ? 'Siguiendo' : 'Seguir')}
+                {following ? 'Siguiendo' : 'Seguir'}
               </button>
               <button
                 onClick={handleMessage}
@@ -196,8 +201,8 @@ function UserProfile() {
       ) : (
         <div className="grid grid-cols-3 gap-0.5">
           {posts.map(post => (
-            <button
-              key={post.id}
+            <motion.button
+              key={post.id} whileTap={{ scale: 0.95 }}
               onClick={() => navigate(`/post/${post.id}`)}
               className="aspect-square bg-gray-50 dark:bg-gray-800 overflow-hidden"
             >
@@ -206,7 +211,7 @@ function UserProfile() {
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-3xl">🛍️</div>
               )}
-            </button>
+            </motion.button>
           ))}
         </div>
       )}
