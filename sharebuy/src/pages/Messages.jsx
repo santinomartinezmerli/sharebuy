@@ -124,7 +124,11 @@ function Messages() {
                   </div>
                   {conv.lastMessage && (
                     <p className="text-xs text-gray-400 truncate mt-0.5">
-                      {conv.lastMessage.is_image ? '📷 Foto' : conv.lastMessage.content}
+                      {conv.lastMessage.sender_id === currentUserId
+                        ? '✓ Enviado'
+                        : conv.lastMessage.is_image
+                          ? '📷 Foto'
+                          : conv.lastMessage.content}
                     </p>
                   )}
                 </div>

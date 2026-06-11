@@ -106,7 +106,10 @@ function Chat() {
   }, [conversationId, currentUserId])
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (endRef.current) {
+      const el = endRef.current.parentElement
+      if (el) el.scrollTop = el.scrollHeight
+    }
   }, [messages, otherTyping])
 
   const handleSend = async () => {
