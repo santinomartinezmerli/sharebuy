@@ -6,10 +6,12 @@ function Profile() {
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [posts, setPosts] = useState([])
+  const [savedPosts, setSavedPosts] = useState([])
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState(null)
+  const [tab, setTab] = useState('posts')
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -31,6 +33,21 @@ function Profile() {
         .from('follows').select('*', { count: 'exact', head: true })
         .eq('follower_id', user.id)
 
+      const { data: savedData } = await supabase
+        .from('saves')
+        .select('post_id')
+        .eq('user_id', user.id)
+
+      if (savedData && savedData.length > 0) {
+        const savedIds = savedData.map(s => s.post_id)
+        const { data: sp } = await supabase
+          .from('posts')
+          .select('*, profiles(username, avatar_url)')
+          .in('id', savedIds)
+          .order('created_at', { ascending: false })
+        setSavedPosts(sp ?? [])
+      }
+
       setProfile(profileData)
       setPosts(postsData ?? [])
       setFollowersCount(followers ?? 0)
@@ -42,15 +59,15 @@ function Profile() {
   }, [])
 
   if (loading) return (
-    <div className="flex items-center justify-center py-20 text-sm text-gray-400">
-      Cargando...
-    </div>
+    <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
   )
+
+  const grid = (tab === 'posts' ? posts : savedPosts)
 
   return (
     <div className="flex flex-col dark:bg-gray-900 dark:text-white">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-        <span className="text-sm font-medium text-gray-900">{profile?.username}</span>
+        <span className="text-sm font-medium text-gray-900 dark:text-white">{profile?.username}</span>
         <button onClick={() => navigate('/edit-profile')} className="text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
@@ -58,7 +75,7 @@ function Profile() {
         </button>
       </div>
 
-      <div className="px-4 py-4 border-b border-gray-100">
+      <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-4 mb-3">
           <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xl font-medium overflow-hidden flex-shrink-0">
             {profile?.avatar_url
@@ -67,49 +84,50 @@ function Profile() {
           </div>
           <div className="flex gap-6 flex-1 justify-center">
             <div className="flex flex-col items-center">
-              <span className="text-base font-semibold text-gray-900">{posts.length}</span>
+              <span className="text-base font-semibold text-gray-900 dark:text-white">{posts.length}</span>
               <span className="text-xs text-gray-400">compras</span>
             </div>
-            <button
-              onClick={() => userId && navigate(`/user/${userId}/follow?type=followers`)}
-              className="flex flex-col items-center"
-            >
-              <span className="text-base font-semibold text-gray-900">{followersCount}</span>
+            <button onClick={() => userId && navigate(`/user/${userId}/follow?type=followers`)} className="flex flex-col items-center">
+              <span className="text-base font-semibold text-gray-900 dark:text-white">{followersCount}</span>
               <span className="text-xs text-gray-400">seguidores</span>
             </button>
-            <button
-              onClick={() => userId && navigate(`/user/${userId}/follow?type=following`)}
-              className="flex flex-col items-center"
-            >
-              <span className="text-base font-semibold text-gray-900">{followingCount}</span>
+            <button onClick={() => userId && navigate(`/user/${userId}/follow?type=following`)} className="flex flex-col items-center">
+              <span className="text-base font-semibold text-gray-900 dark:text-white">{followingCount}</span>
               <span className="text-xs text-gray-400">siguiendo</span>
             </button>
           </div>
         </div>
-        <p className="text-sm font-medium text-gray-900">{profile?.username}</p>
+        <p className="text-sm font-medium text-gray-900 dark:text-white">{profile?.username}</p>
         {profile?.bio && <p className="text-sm text-gray-500 mt-1">{profile.bio}</p>}
+        <button onClick={() => supabase.auth.signOut()} className="mt-3 text-xs text-red-400">Cerrar sesión</button>
+      </div>
 
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="mt-3 text-xs text-red-400"
-        >
-          Cerrar sesión
+      {/* Tabs */}
+      <div className="flex border-b border-gray-100 dark:border-gray-700">
+        <button onClick={() => setTab('posts')} className={`flex-1 py-3 text-xs font-medium text-center border-b-2 transition-colors ${tab === 'posts' ? 'border-green-500 text-green-500' : 'border-transparent text-gray-400'}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mx-auto mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          Publicaciones
+        </button>
+        <button onClick={() => setTab('saved')} className={`flex-1 py-3 text-xs font-medium text-center border-b-2 transition-colors ${tab === 'saved' ? 'border-green-500 text-green-500' : 'border-transparent text-gray-400'}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 mx-auto mb-0.5 ${tab === 'saved' ? 'text-yellow-500' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
+          Guardados
         </button>
       </div>
 
-      {posts.length === 0 ? (
+      {grid.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
-          <p className="text-sm">Todavía no publicaste nada</p>
-          <p className="text-xs">¡Compartí tu primera compra!</p>
+          <p className="text-sm">{tab === 'posts' ? 'Todavía no publicaste nada' : 'No guardaste publicaciones'}</p>
+          <p className="text-xs">{tab === 'posts' ? '¡Compartí tu primera compra!' : 'Guardá posts tocando el marcador'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-0.5">
-          {posts.map(post => (
-            <button
-              key={post.id}
-              onClick={() => navigate(`/post/${post.id}`)}
-              className="aspect-square bg-gray-50 overflow-hidden"
-            >
+          {grid.map(post => (
+            <button key={post.id} onClick={() => navigate(`/post/${post.id}`)}
+              className="aspect-square bg-gray-50 dark:bg-gray-800 overflow-hidden">
               {(post.image_urls?.[0] || post.image_url) ? (
                 <img src={post.image_urls?.[0] ?? post.image_url} className="w-full h-full object-cover" />
               ) : (

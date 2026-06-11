@@ -12,6 +12,7 @@ function Chat() {
   const [currentUserId, setCurrentUserId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
   const [typing, setTyping] = useState(false)
   const [otherTyping, setOtherTyping] = useState(false)
   const [readMap, setReadMap] = useState({})
@@ -124,6 +125,7 @@ function Chat() {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
+    setUploadError(null)
 
     const ext = file.name.split('.').pop()
     const filename = `chat-${currentUserId}-${Date.now()}.${ext}`
@@ -132,7 +134,7 @@ function Chat() {
       .upload(filename, file)
 
     if (uploadError) {
-      console.error(uploadError)
+      setUploadError(`Error al subir foto: ${uploadError.message}`)
       setUploading(false)
       return
     }
@@ -201,6 +203,12 @@ function Chat() {
         )}
         <div ref={endRef} />
       </div>
+
+      {uploadError && (
+        <div className="px-4 py-2 bg-red-50 border-t border-red-200 text-xs text-red-600">
+          {uploadError}
+        </div>
+      )}
 
       <div className="border-t border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center gap-3 bg-white dark:bg-gray-900">
         <input type="file" accept="image/*" onChange={handleSendPhoto} className="hidden" ref={fileInputRef} />
