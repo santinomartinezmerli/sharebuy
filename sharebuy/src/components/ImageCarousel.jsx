@@ -110,12 +110,14 @@ function ImageCarousel({ images, brand, className = '' }) {
       onMouseLeave={handleMouseLeave}
     >
       <div
-        className={`absolute inset-0 flex ${transitionClass}`}
+        className={`flex ${transitionClass}`}
         style={{ transform: `translateX(${translateX})` }}
       >
         {urls.map((url, i) => (
-          <div key={i} className="min-w-full h-full flex-shrink-0">
-            <img src={url} className="w-full h-full object-cover pointer-events-none" alt="" draggable={false} />
+          <div key={i} className="w-full flex-shrink-0">
+            <div className="aspect-square bg-gray-50 relative overflow-hidden">
+              <img src={url} className="w-full h-full object-cover" alt="" draggable={false} />
+            </div>
           </div>
         ))}
       </div>
