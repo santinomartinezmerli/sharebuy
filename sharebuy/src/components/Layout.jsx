@@ -2,8 +2,14 @@ import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useDarkMode } from '../lib/DarkModeContext'
+import { usePullToRefresh, PullIndicator } from '../hooks/usePullToRefresh'
+import { getRefresh } from '../lib/refreshRegistry'
 
 function Layout({ children }) {
+  const { pulling, pullDistance, THRESHOLD } = usePullToRefresh(() => {
+    const fn = getRefresh()
+    if (fn) fn()
+  })
   const { dark, toggle } = useDarkMode()
   const [unreadCount, setUnreadCount] = useState(0)
 
@@ -37,7 +43,8 @@ function Layout({ children }) {
 
   return (
     <div className="flex flex-col h-dvh max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden">
-      <main className="flex-1 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+      <main className="flex-1 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] relative">
+        <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
         {children}
       </main>
 

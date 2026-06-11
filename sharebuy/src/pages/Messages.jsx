@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
+import { registerRefresh } from '../lib/refreshRegistry'
 
 function Messages() {
   const navigate = useNavigate()
@@ -10,60 +11,65 @@ function Messages() {
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState(null)
 
-  useEffect(() => {
-    const fetch = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUserId(user.id)
+  const fetchData = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setCurrentUserId(user.id)
 
-      const [convResult, blockedResult] = await Promise.all([
-        supabase.from('conversations')
-          .select('*, user1:user1_id(id, username, avatar_url), user2:user2_id(id, username, avatar_url)')
-          .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-          .order('created_at', { ascending: false }),
-        supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
-      ])
+    const [convResult, blockedResult] = await Promise.all([
+      supabase.from('conversations')
+        .select('*, user1:user1_id(id, username, avatar_url), user2:user2_id(id, username, avatar_url)')
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+        .order('created_at', { ascending: false }),
+      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+    ])
 
-      const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
-      const filtered = (convResult.data ?? []).filter(conv => {
-        const other = conv.user1_id === user.id ? conv.user2 : conv.user1
-        return other && !blockedIds.has(other.id)
-      })
+    const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
+    const filtered = (convResult.data ?? []).filter(conv => {
+      const other = conv.user1_id === user.id ? conv.user2 : conv.user1
+      return other && !blockedIds.has(other.id)
+    })
 
-      const convIds = filtered.map(c => c.id)
-      const [lastMessagesResult, unreadResult] = await Promise.all([
-        convIds.length > 0
-          ? supabase.from('messages').select('conversation_id, content, created_at, is_image')
-              .in('conversation_id', convIds).order('created_at', { ascending: false }).limit(convIds.length * 2)
-          : { data: [] },
-        convIds.length > 0
-          ? supabase.from('messages').select('conversation_id, id', { count: 'exact', head: false })
-              .in('conversation_id', convIds).is('read_at', null).neq('sender_id', user.id)
-          : { data: [] },
-      ])
+    const convIds = filtered.map(c => c.id)
+    const [lastMessagesResult, unreadResult] = await Promise.all([
+      convIds.length > 0
+        ? supabase.from('messages').select('conversation_id, content, created_at, is_image')
+            .in('conversation_id', convIds).order('created_at', { ascending: false }).limit(convIds.length * 2)
+        : { data: [] },
+      convIds.length > 0
+        ? supabase.from('messages').select('conversation_id, id').in('conversation_id', convIds).is('read_at', null).neq('sender_id', user.id)
+        : { data: [] },
+    ])
 
-      const lastMsgMap = {}
-      const usedIds = new Set()
-      for (const msg of (lastMessagesResult.data ?? []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))) {
-        if (!usedIds.has(msg.conversation_id)) {
-          lastMsgMap[msg.conversation_id] = msg
-          usedIds.add(msg.conversation_id)
-        }
+    const lastMsgMap = {}
+    const usedIds = new Set()
+    for (const msg of (lastMessagesResult.data ?? []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))) {
+      if (!usedIds.has(msg.conversation_id)) {
+        lastMsgMap[msg.conversation_id] = msg
+        usedIds.add(msg.conversation_id)
       }
-
-      const unreadMap = {}
-      for (const msg of (unreadResult.data ?? [])) {
-        unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
-      }
-
-      setConversations(filtered.map(c => ({
-        ...c,
-        lastMessage: lastMsgMap[c.id] ?? null,
-        unreadCount: unreadMap[c.id] ?? 0,
-      })))
-      setLoading(false)
     }
-    fetch()
+
+    const unreadMap = {}
+    for (const msg of (unreadResult.data ?? [])) {
+      unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
+    }
+
+    setConversations(filtered.map(c => ({
+      ...c,
+      lastMessage: lastMsgMap[c.id] ?? null,
+      unreadCount: unreadMap[c.id] ?? 0,
+    })))
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchData()
+    const onVisible = () => { if (!document.hidden) fetchData() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
+
+  useEffect(() => registerRefresh(fetchData), [])
 
   if (loading) return (
     <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>

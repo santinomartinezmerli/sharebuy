@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import EmptyState from '../components/EmptyState'
-import { usePullToRefresh, PullIndicator } from '../hooks/usePullToRefresh'
+import { registerRefresh } from '../lib/refreshRegistry'
 
 const CATEGORIES = ['Todo', 'Ropa', 'Tecnología', 'Hogar', 'Deporte', 'Belleza']
 
@@ -30,7 +30,7 @@ function Explore() {
     setLikedIds(new Set(likesResult.data?.map(l => l.post_id) ?? []))
   }, [])
 
-  const { pulling, pullDistance, THRESHOLD } = usePullToRefresh(refreshExplore)
+  useEffect(() => registerRefresh(refreshExplore), [refreshExplore])
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -244,7 +244,6 @@ function Explore() {
         />
       ) : (
         <div>
-          <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
           <div className="grid grid-cols-2 gap-0.5 p-0.5">
             {filtered.map((post, index) => (
               <div

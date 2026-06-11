@@ -5,7 +5,7 @@ import StoryViewer from '../components/StoryViewer'
 import ImageCarousel from '../components/ImageCarousel'
 import Avatar from '../components/Avatar'
 import CommentSheet from '../components/CommentSheet'
-import { usePullToRefresh, PullIndicator } from '../hooks/usePullToRefresh'
+import { registerRefresh } from '../lib/refreshRegistry'
 
 function PostCard({ post, currentUserId, onCommentClick }) {
   const [liked, setLiked] = useState(false)
@@ -222,7 +222,7 @@ function Feed() {
     if (data) { setPosts(data); setHasMore(data.length >= PAGE_SIZE); setPage(1) }
   }, [])
 
-  const { pulling, pullDistance, THRESHOLD } = usePullToRefresh(refreshFeed)
+  useEffect(() => registerRefresh(refreshFeed), [refreshFeed])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -379,7 +379,6 @@ function Feed() {
         </div>
       ) : (
         <div>
-          <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
           {posts.map(post => (
             <PostCard key={post.id} post={post} currentUserId={currentUserId} onCommentClick={setCommentPostId} />
           ))}
