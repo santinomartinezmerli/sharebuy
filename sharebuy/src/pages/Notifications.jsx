@@ -170,7 +170,7 @@ function Notifications() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900 dark:text-gray-100"><span className="font-medium">{notif.username}</span> empezó a seguirte</p>
+                    <p className="text-sm text-gray-900 dark:text-gray-100"><button onClick={(e) => { e.stopPropagation(); navigate(`/user/${notif.user_id}`) }} className="font-medium hover:underline inline">{notif.username}</button> empezó a seguirte</p>
                   </div>
                   <span className="text-xs text-gray-400 flex-shrink-0">{timeAgo(notif.created_at)}</span>
                 </motion.button>
