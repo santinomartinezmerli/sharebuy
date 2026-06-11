@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { SkeletonList } from '../components/Skeleton'
 
 function FollowList() {
   const { userId } = useParams()
@@ -79,7 +80,7 @@ function FollowList() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
+        <SkeletonList count={8} />
       ) : users.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
           <p className="text-sm">

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import EmptyState from '../components/EmptyState'
+import { SkeletonList } from '../components/Skeleton'
 
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000)
@@ -137,9 +138,7 @@ function Notifications() {
     fetchNotifications()
   }, [])
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
-  )
+  if (loading) return <SkeletonList count={6} />
 
   return (
     <div className="flex flex-col dark:bg-gray-900 dark:text-white">

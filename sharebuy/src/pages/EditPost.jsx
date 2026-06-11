@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ImageCarousel from '../components/ImageCarousel'
+import { SkeletonForm } from '../components/Skeleton'
 
 function EditPost() {
   const { postId } = useParams()
@@ -70,9 +71,7 @@ function EditPost() {
     navigate(`/post/${postId}`, { replace: true })
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
-  )
+  if (loading) return <SkeletonForm fields={5} />
 
   return (
     <div className="flex flex-col h-full dark:bg-gray-900 dark:text-white">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { SkeletonProfile } from '../components/Skeleton'
 
 function Profile() {
   const navigate = useNavigate()
@@ -58,9 +59,7 @@ function Profile() {
     fetchProfile()
   }, [])
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
-  )
+  if (loading) return <SkeletonProfile />
 
   const grid = (tab === 'posts' ? posts : savedPosts)
 

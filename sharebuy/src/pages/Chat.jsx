@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Avatar from '../components/Avatar'
+import { SkeletonChat } from '../components/Skeleton'
 
 function Chat() {
   const { conversationId } = useParams()
@@ -206,9 +207,7 @@ function Chat() {
     setDeletingMsgId(null)
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
-  )
+  if (loading) return <SkeletonChat />
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden dark:bg-gray-900 dark:text-white">

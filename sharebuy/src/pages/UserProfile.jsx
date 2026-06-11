@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { SkeletonProfile } from '../components/Skeleton'
 
 function UserProfile() {
   const { userId } = useParams()
@@ -112,9 +113,7 @@ function UserProfile() {
     }
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
-  )
+  if (loading) return <SkeletonProfile />
 
   return (
     <div className="flex flex-col dark:bg-gray-900 dark:text-white">

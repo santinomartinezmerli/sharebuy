@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ImageCarousel from '../components/ImageCarousel'
 import Avatar from '../components/Avatar'
+import { SkeletonPostDetail } from '../components/Skeleton'
 
 function PostDetail() {
   const { postId } = useParams()
@@ -155,9 +156,7 @@ function PostDetail() {
     }
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
-  )
+  if (loading) return <SkeletonPostDetail />
   if (!post) return null
 
   const isOwner = currentUserId === post.user_id

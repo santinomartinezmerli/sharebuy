@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { SkeletonForm } from '../components/Skeleton'
 
 function EditProfile() {
   const navigate = useNavigate()
@@ -95,9 +96,7 @@ function EditProfile() {
     navigate('/profile')
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
-  )
+  if (loading) return <SkeletonForm fields={2} />
 
   const displayAvatar = avatarPreview || (removeAvatar ? null : avatarUrl)
 
