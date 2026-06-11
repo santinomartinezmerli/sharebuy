@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Avatar from '../components/Avatar'
@@ -22,6 +22,7 @@ function Chat() {
   const [readMap, setReadMap] = useState({})
   const fileInputRef = useRef(null)
   const typingTimeoutRef = useRef(null)
+  const endRef = useRef(null)
 
   // Mark conversation as read immediately on mount (not just after async fetch)
   useEffect(() => {
@@ -103,6 +104,11 @@ function Chat() {
 
     return () => { supabase.removeChannel(channel) }
   }, [conversationId, currentUserId])
+
+  useLayoutEffect(() => {
+    if (messages.length === 0) return
+    endRef.current?.scrollIntoView({ block: 'end' })
+  }, [messages, otherTyping])
 
   const handleSend = async () => {
     const text = newMessage.trim()
@@ -211,7 +217,7 @@ function Chat() {
   )
 
   return (
-    <div className="flex flex-col flex-1 dark:bg-gray-900 dark:text-white">
+    <div className="flex flex-col h-full overflow-hidden dark:bg-gray-900 dark:text-white">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <button onClick={() => navigate('/messages')} className="text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -224,18 +230,13 @@ function Chat() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col-reverse gap-2">
-        {otherTyping && (
-          <div className="self-start bg-gray-100 rounded-2xl px-3 py-2 text-sm text-gray-500 rounded-bl-sm">
-            {otherUser?.username} está escribiendo...
-          </div>
-        )}
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
         {messages.length === 0 && (
           <p className="text-center text-xs text-gray-400 mt-4">
             Es el comienzo de tu conversación con {otherUser?.username}
           </p>
         )}
-        {[...messages].reverse().map(msg => {
+        {messages.map(msg => {
           const isMine = msg.sender_id === currentUserId
           const isImage = msg.is_image || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(msg.content)
           const isEditing = editingMsgId === msg.id
@@ -293,6 +294,12 @@ function Chat() {
             </div>
           )
         })}
+        {otherTyping && (
+          <div className="self-start bg-gray-100 rounded-2xl px-3 py-2 text-sm text-gray-500 rounded-bl-sm">
+            {otherUser?.username} está escribiendo...
+          </div>
+        )}
+        <div ref={endRef} />
       </div>
 
       {uploadError && (
