@@ -125,7 +125,7 @@ function ImageCarousel({ images, brand, className = '' }) {
       {urls.length > 1 && current > 0 && (
         <button
           onClick={prev}
-          className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center bg-black/30 rounded-full text-white active:scale-90 transition-transform"
+          className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center bg-black/30 rounded-full text-white active:scale-95 transition-transform"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -135,7 +135,7 @@ function ImageCarousel({ images, brand, className = '' }) {
       {urls.length > 1 && current < urls.length - 1 && (
         <button
           onClick={next}
-          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center bg-black/30 rounded-full text-white active:scale-90 transition-transform"
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center bg-black/30 rounded-full text-white active:scale-95 transition-transform"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

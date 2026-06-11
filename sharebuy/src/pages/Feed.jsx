@@ -123,18 +123,18 @@ function PostCard({ post, currentUserId, onCommentClick }) {
       {/* Actions */}
       <div className="flex items-center px-4 pt-3 pb-1">
         <div className="flex items-center gap-1">
-          <button onClick={handleLike} disabled={liking} className="disabled:opacity-50 p-1 -ml-1 active:scale-90 transition-transform">
+          <button onClick={handleLike} disabled={liking} className="disabled:opacity-50 p-1 -ml-1 active:scale-95 transition-transform">
             <svg xmlns="http://www.w3.org/2000/svg" className={`w-[22px] h-[22px] transition-all ${liked ? 'text-red-500 fill-red-500 scale-110' : 'text-gray-400 dark:text-gray-500'}`} viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
           </button>
-          <button onClick={() => onCommentClick(post.id)} className="p-1 active:scale-90 transition-transform">
+          <button onClick={() => onCommentClick(post.id)} className="p-1 active:scale-95 transition-transform">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-[22px] h-[22px] text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </button>
         </div>
-        <button onClick={handleSave} disabled={saving} className="ml-auto disabled:opacity-50 p-1 -mr-1 active:scale-90 transition-transform">
+        <button onClick={handleSave} disabled={saving} className="ml-auto disabled:opacity-50 p-1 -mr-1 active:scale-95 transition-transform">
           <svg xmlns="http://www.w3.org/2000/svg" className={`w-[22px] h-[22px] ${saved ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400 dark:text-gray-500'}`} viewBox="0 0 24 24" fill={saved ? 'currentColor' : 'none'} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
@@ -394,8 +394,10 @@ function Feed() {
         </div>
       ) : (
         <div>
-          {posts.map(post => (
-            <PostCard key={post.id} post={post} currentUserId={currentUserId} onCommentClick={setCommentPostId} />
+          {posts.map((post, i) => (
+            <div key={post.id} className="stagger-enter" style={{ animationDelay: `${Math.min(i * 40, 400)}ms` }}>
+              <PostCard post={post} currentUserId={currentUserId} onCommentClick={setCommentPostId} />
+            </div>
           ))}
           <div ref={sentinelRef} className="h-1" />
           {loadingMore && (

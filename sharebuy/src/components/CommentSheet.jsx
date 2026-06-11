@@ -65,13 +65,13 @@ function CommentSheet({ postId, currentUserId, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
       <div
-        className="absolute inset-0 transition-opacity duration-250"
+        className="absolute inset-0 transition-all duration-250"
         style={{ opacity: visible ? 1 : 0, backgroundColor: visible ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0)' }}
         onClick={handleClose}
       />
       <div
         className="relative bg-white dark:bg-gray-900 rounded-t-2xl flex flex-col shadow-2xl"
-        style={{ maxHeight: '75vh', transform: visible ? 'translateY(0)' : 'translateY(100%)', transition: 'transform 280ms cubic-bezier(0.32, 0.72, 0, 1)' }}
+        style={{ maxHeight: '75vh', transform: visible ? 'translateY(0)' : 'translateY(100%)', transition: 'transform 320ms cubic-bezier(0.32, 0.72, 0, 1)' }}
       >
         <div className="flex justify-center pt-2.5 pb-1 flex-shrink-0">
           <div className="w-9 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
@@ -119,7 +119,7 @@ function CommentSheet({ postId, currentUserId, onClose }) {
                       </div>
                     ) : (
                       <div>
-                        <button onClick={() => navigate(`/user/${comment.user_id}`)} className="text-sm font-semibold text-gray-900 dark:text-white hover:underline">{comment.profiles?.username}</button>
+                        <button onClick={() => navigate(`/user/${comment.user_id}`)} className="text-sm font-semibold text-gray-900 dark:text-white hover:underline transition-opacity active:opacity-60">{comment.profiles?.username}</button>
                         <span className="text-sm text-gray-600 dark:text-gray-300 ml-1">{comment.content}</span>
                         <p className="text-[11px] text-gray-400 mt-0.5">{new Date(comment.created_at).toLocaleDateString('es-AR')}</p>
                       </div>
@@ -127,12 +127,12 @@ function CommentSheet({ postId, currentUserId, onClose }) {
                   </div>
                   {comment.user_id === currentUserId && editingId !== comment.id && (
                     <div className="flex gap-1.5 flex-shrink-0">
-                      <button onClick={() => { setEditingId(comment.id); setEditText(comment.content) }} className="text-gray-400 p-1 active:scale-90 transition-transform" title="Editar">
+                      <button onClick={() => { setEditingId(comment.id); setEditText(comment.content) }} className="text-gray-400 p-1 active:scale-95 transition-transform" title="Editar">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      <button onClick={() => handleDelete(comment.id)} className="text-red-300 p-1 active:scale-90 transition-transform" title="Eliminar">
+                      <button onClick={() => handleDelete(comment.id)} className="text-red-300 p-1 active:scale-95 transition-transform" title="Eliminar">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                         </svg>
