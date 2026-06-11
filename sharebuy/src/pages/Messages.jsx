@@ -35,7 +35,7 @@ function Messages() {
 
     if (convIds.length > 0) {
       const { data: allMsgs } = await supabase.from('messages')
-        .select('conversation_id, id, sender_id, created_at, content, is_image')
+        .select('conversation_id, id, sender_id, created_at, content')
         .in('conversation_id', convIds).order('created_at', { ascending: false }).limit(1000)
 
       let lastRead = {}
@@ -126,7 +126,7 @@ function Messages() {
                     <p className="text-xs text-gray-400 truncate mt-0.5">
                       {conv.lastMessage.sender_id === currentUserId
                         ? '✓ Enviado'
-                        : conv.lastMessage.is_image
+                        : /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(conv.lastMessage.content)
                           ? '📷 Foto'
                           : conv.lastMessage.content}
                     </p>

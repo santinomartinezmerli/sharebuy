@@ -106,10 +106,12 @@ function Chat() {
   }, [conversationId, currentUserId])
 
   useEffect(() => {
-    if (endRef.current) {
-      const el = endRef.current.parentElement
-      if (el) el.scrollTop = el.scrollHeight
-    }
+    if (!endRef.current) return
+    const el = endRef.current.parentElement
+    if (!el) return
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight
+    })
   }, [messages, otherTyping])
 
   const handleSend = async () => {
