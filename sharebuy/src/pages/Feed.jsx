@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import StoryViewer from '../components/StoryViewer'
+import ImageCarousel from '../components/ImageCarousel'
+import Avatar from '../components/Avatar'
 
 function PostCard({ post, currentUserId }) {
   const [liked, setLiked] = useState(false)
@@ -25,56 +27,60 @@ function PostCard({ post, currentUserId }) {
       setLikesCount(count ?? 0)
       setLiked(!!userLike)
     }
-
     fetchLikes()
   }, [post.id, currentUserId])
 
   const handleLike = async () => {
     if (liked) {
       await supabase.from('likes').delete()
-        .eq('post_id', post.id)
-        .eq('user_id', currentUserId)
+        .eq('post_id', post.id).eq('user_id', currentUserId)
       setLiked(false)
       setLikesCount(prev => prev - 1)
     } else {
-      await supabase.from('likes').insert({
-        post_id: post.id,
-        user_id: currentUserId
-      })
+      await supabase.from('likes').insert({ post_id: post.id, user_id: currentUserId })
       setLiked(true)
       setLikesCount(prev => prev + 1)
     }
   }
 
+  const imageUrls = (post.image_urls && post.image_urls.length > 0)
+    ? post.image_urls
+    : (post.image_url ? [post.image_url] : [])
+
   return (
     <div className="bg-white border-b border-gray-100">
+      {/* Header del post */}
       <div className="flex items-center gap-3 px-4 py-3">
-        <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-medium">
-          {post.profiles?.username?.slice(0, 2).toUpperCase() ?? '??'}
-        </div>
+        <button onClick={() => navigate(`/user/${post.user_id}`)}>
+          <Avatar url={post.profiles?.avatar_url} username={post.profiles?.username} size="md" />
+        </button>
         <div className="flex-1">
           <button onClick={() => navigate(`/user/${post.user_id}`)} className="text-sm font-medium text-gray-900">
-  {post.profiles?.username ?? 'usuario'}
-</button>
+            {post.profiles?.username ?? 'usuario'}
+          </button>
           <p className="text-xs text-gray-400">{new Date(post.created_at).toLocaleDateString('es-AR')}</p>
         </div>
       </div>
 
-      <button onClick={() => navigate(`/post/${post.id}`)} className="w-full">
-  <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
-    {post.image_url ? (
-      <img src={post.image_url} className="w-full h-full object-cover" />
-    ) : (
-      <span className="text-7xl">{post.emoji ?? '🛍️'}</span>
-    )}
-    {post.brand && (
-      <span className="absolute bottom-3 left-3 bg-white text-green-700 text-xs font-medium px-3 py-1 rounded-full border border-green-100">
-        {post.brand}
-      </span>
-    )}
-  </div>
-</button>
+      {/* Imagen / Carousel */}
+      {imageUrls.length > 0 ? (
+        <button onClick={() => navigate(`/post/${post.id}`)} className="w-full block">
+          <ImageCarousel images={imageUrls} brand={post.brand} />
+        </button>
+      ) : (
+        <button onClick={() => navigate(`/post/${post.id}`)} className="w-full">
+          <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
+            <span className="text-7xl">{post.emoji ?? '🛍️'}</span>
+            {post.brand && (
+              <span className="absolute bottom-3 left-3 bg-white text-green-700 text-xs font-medium px-3 py-1 rounded-full border border-green-100">
+                {post.brand}
+              </span>
+            )}
+          </div>
+        </button>
+      )}
 
+      {/* Acciones */}
       <div className="px-4 py-3 flex flex-col gap-1">
         <div className="flex items-center gap-4">
           <button onClick={handleLike} className="flex items-center gap-1">
@@ -83,12 +89,17 @@ function PostCard({ post, currentUserId }) {
             </svg>
             {likesCount > 0 && <span className="text-xs text-gray-400">{likesCount}</span>}
           </button>
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+          <button onClick={() => navigate(`/post/${post.id}`)} className="flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </button>
         </div>
         <p className="text-sm text-gray-500">
-          <span className="font-medium text-gray-900">{post.profiles?.username ?? 'usuario'}</span> {post.product}
+          <button onClick={() => navigate(`/user/${post.user_id}`)} className="font-medium text-gray-900">
+            {post.profiles?.username ?? 'usuario'}
+          </button>
+          {' '}{post.product}
           {post.caption && ` · ${post.caption}`}
           {post.price && <span className="text-green-500 font-medium"> ${post.price}</span>}
         </p>
@@ -111,27 +122,26 @@ function Feed() {
   const [currentUserId, setCurrentUserId] = useState(null)
   const [storyGroups, setStoryGroups] = useState([])
   const [activeStoryGroup, setActiveStoryGroup] = useState(null)
+  const navigate = useNavigate()
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
   }
 
- useEffect(() => {
+  useEffect(() => {
     const fetchPosts = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUserId(user.id)
 
       const { data: followsData } = await supabase
-        .from('follows')
-        .select('following_id')
-        .eq('follower_id', user.id)
+        .from('follows').select('following_id').eq('follower_id', user.id)
 
       const followingIds = followsData?.map(f => f.following_id) ?? []
       const ids = [user.id, ...followingIds]
 
       const { data, error } = await supabase
         .from('posts')
-        .select('*, profiles(username)')
+        .select('*, profiles(username, avatar_url)')   // ← avatar_url incluido
         .in('user_id', ids)
         .order('created_at', { ascending: false })
 
@@ -147,37 +157,42 @@ function Feed() {
             groups[post.user_id] = {
               userId: post.user_id,
               username: post.profiles?.username,
+              avatarUrl: post.profiles?.avatar_url,
               stories: []
             }
           }
           groups[post.user_id].stories.push(post)
         })
-
         setStoryGroups(Object.values(groups))
       }
       setLoading(false)
     }
-
     fetchPosts()
   }, [])
-  
+
   return (
     <div className="flex flex-col">
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <h1 className="text-xl font-semibold tracking-tight">
           share<span className="text-green-500">buy</span>
         </h1>
         <div className="flex items-center gap-4 text-gray-400">
           <button onClick={handleSignOut} className="text-xs text-red-400">Salir</button>
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.437L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+          <button onClick={() => navigate('/notifications')} className="text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.437L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+          </button>
+          <button onClick={() => navigate('/messages')} className="text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </button>
         </div>
       </div>
 
+      {/* Stories */}
       {storyGroups.length > 0 && (
         <div className="flex gap-3 px-4 py-3 overflow-x-auto border-b border-gray-100">
           {storyGroups.map((group, index) => (
@@ -188,7 +203,10 @@ function Feed() {
             >
               <div className="w-14 h-14 rounded-full p-0.5 border-2 border-green-500">
                 <div className="w-full h-full rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-medium overflow-hidden">
-                  {group.userId === currentUserId ? 'Tú' : group.username?.slice(0, 2).toUpperCase()}
+                  {group.avatarUrl
+                    ? <img src={group.avatarUrl} className="w-full h-full object-cover" alt="" />
+                    : (group.userId === currentUserId ? 'Tú' : group.username?.slice(0, 2).toUpperCase())
+                  }
                 </div>
               </div>
               <span className="text-[10px] text-gray-500 max-w-[56px] truncate">
@@ -200,9 +218,7 @@ function Feed() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-sm text-gray-400">
-          Cargando...
-        </div>
+        <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
       ) : posts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
           <p className="text-sm">Todavía no hay compras</p>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import Avatar from '../components/Avatar'
 
 function Messages() {
   const navigate = useNavigate()
@@ -15,7 +16,7 @@ function Messages() {
 
       const { data } = await supabase
         .from('conversations')
-        .select('*, user1:user1_id(id, username), user2:user2_id(id, username)')
+        .select('*, user1:user1_id(id, username, avatar_url), user2:user2_id(id, username, avatar_url)')
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
         .order('created_at', { ascending: false })
 
@@ -58,9 +59,7 @@ function Messages() {
                 onClick={() => navigate(`/messages/${conv.id}`)}
                 className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50"
               >
-                <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-medium flex-shrink-0">
-                  {other?.username?.slice(0, 2).toUpperCase()}
-                </div>
+                <Avatar url={other?.avatar_url} username={other?.username} size="lg" />
                 <div className="flex-1 text-left">
                   <p className="text-sm font-medium text-gray-900">{other?.username}</p>
                 </div>

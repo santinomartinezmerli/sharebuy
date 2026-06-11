@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import Avatar from '../components/Avatar'
 
 function Chat() {
   const { conversationId } = useParams()
@@ -19,7 +20,7 @@ function Chat() {
 
       const { data: conv } = await supabase
         .from('conversations')
-        .select('*, user1:user1_id(id, username), user2:user2_id(id, username)')
+        .select('*, user1:user1_id(id, username, avatar_url), user2:user2_id(id, username, avatar_url)')
         .eq('id', conversationId)
         .single()
 
@@ -83,9 +84,7 @@ function Chat() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xs font-medium">
-          {otherUser?.username?.slice(0, 2).toUpperCase()}
-        </div>
+        <Avatar url={otherUser?.avatar_url} username={otherUser?.username} size="md" />
         <span className="text-sm font-medium text-gray-900">{otherUser?.username}</span>
       </div>
 

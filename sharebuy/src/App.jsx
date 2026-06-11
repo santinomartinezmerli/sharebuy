@@ -14,6 +14,8 @@ import Review from './pages/Review'
 import Layout from './components/Layout'
 import Messages from './pages/Messages'
 import Chat from './pages/Chat'
+import FollowList from './pages/FollowList'
+import EditPost from './pages/EditPost'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -72,6 +74,8 @@ useEffect(() => {
           <Route path="/user/:userId" element={<UserProfile />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:conversationId" element={<Chat />} />
+          <Route path="/user/:userId/follow" element={<FollowList />} />
+          <Route path="/edit-post/:postId" element={<EditPost />} />
         </Routes>
       </Layout>
     </BrowserRouter>
