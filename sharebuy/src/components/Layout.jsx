@@ -65,9 +65,7 @@ function Layout({ children }) {
     <div className="flex flex-col h-dvh max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden">
       <main className={`flex-1 ${location.pathname.startsWith('/messages/') ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'} overscroll-contain pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] relative`}>
         <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
-        <div key={location.pathname} className="animate-fade-in">
-          {children}
-        </div>
+        {children}
       </main>
 
       <div className="flex-shrink-0 pb-[env(safe-area-inset-bottom)]">
