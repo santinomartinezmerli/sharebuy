@@ -88,6 +88,8 @@ function Layout({ children }) {
             initial={{ opacity: 0, x: direction > 0 ? 30 : -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col min-h-0"
+            style={{ overflow: location.pathname.startsWith('/messages/') ? 'hidden' : undefined }}
           >
             {children}
           </motion.div>
