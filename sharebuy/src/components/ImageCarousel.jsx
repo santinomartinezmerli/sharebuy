@@ -110,7 +110,7 @@ function ImageCarousel({ images, brand, className = '' }) {
       onMouseLeave={handleMouseLeave}
     >
       <div
-        className={`flex h-full ${transitionClass}`}
+        className={`absolute inset-0 flex ${transitionClass}`}
         style={{ transform: `translateX(${translateX})` }}
       >
         {urls.map((url, i) => (

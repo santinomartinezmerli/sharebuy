@@ -91,9 +91,20 @@ function PostCard({ post, currentUserId, onCommentClick }) {
 
       {/* Image */}
       <div className="px-2">
-        {imageUrls.length > 0 ? (
+        {imageUrls.length > 1 ? (
           <button onClick={() => navigate(`/post/${post.id}`)} className="w-full block">
             <ImageCarousel images={imageUrls} brand={post.brand} className="rounded-xl" />
+          </button>
+        ) : imageUrls.length === 1 ? (
+          <button onClick={() => navigate(`/post/${post.id}`)} className="w-full block">
+            <div className="relative aspect-square bg-gray-50 dark:bg-gray-700 rounded-xl overflow-hidden">
+              <img src={imageUrls[0]} className="w-full h-full object-cover" alt="" />
+              {post.brand && (
+                <span className="absolute bottom-2 left-2 bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-200 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-sm">
+                  {post.brand}
+                </span>
+              )}
+            </div>
           </button>
         ) : (
           <button onClick={() => navigate(`/post/${post.id}`)} className="w-full">

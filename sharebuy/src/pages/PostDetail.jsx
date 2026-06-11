@@ -248,19 +248,27 @@ function PostDetail() {
       )}
 
       <div className="flex-1 overflow-y-auto">
-        {imageUrls.length > 0
-          ? <ImageCarousel images={imageUrls} brand={post.brand} />
-          : (
-            <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
-              <span className="text-7xl">🛍️</span>
-              {post.brand && (
-                <span className="absolute bottom-3 left-3 bg-white dark:bg-gray-800 text-green-700 dark:text-green-300 text-xs font-medium px-3 py-1 rounded-full border border-green-100 dark:border-green-700">
-                  {post.brand}
-                </span>
-              )}
-            </div>
-          )
-        }
+        {imageUrls.length > 1 ? (
+          <ImageCarousel images={imageUrls} brand={post.brand} />
+        ) : imageUrls.length === 1 ? (
+          <div className="relative aspect-square bg-gray-50 overflow-hidden">
+            <img src={imageUrls[0]} className="w-full h-full object-cover" alt="" />
+            {post.brand && (
+              <span className="absolute bottom-3 left-3 bg-white dark:bg-gray-800 text-green-700 dark:text-green-300 text-xs font-medium px-3 py-1 rounded-full border border-green-100 dark:border-green-700">
+                {post.brand}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
+            <span className="text-7xl">🛍️</span>
+            {post.brand && (
+              <span className="absolute bottom-3 left-3 bg-white dark:bg-gray-800 text-green-700 dark:text-green-300 text-xs font-medium px-3 py-1 rounded-full border border-green-100 dark:border-green-700">
+                {post.brand}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Autor */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700">

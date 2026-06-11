@@ -95,11 +95,17 @@ function EditPost() {
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
 
         {/* Preview de fotos (solo lectura) */}
-        {imageUrls.length > 0 && (
+        {imageUrls.length > 1 ? (
           <div className="rounded-xl overflow-hidden">
             <ImageCarousel images={imageUrls} />
           </div>
-        )}
+        ) : imageUrls.length === 1 ? (
+          <div className="rounded-xl overflow-hidden">
+            <div className="relative aspect-square bg-gray-50">
+              <img src={imageUrls[0]} className="w-full h-full object-cover" alt="" />
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-400 uppercase tracking-wide">¿Qué compraste?</label>
