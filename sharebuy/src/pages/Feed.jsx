@@ -4,8 +4,10 @@ import { supabase } from '../lib/supabase'
 import StoryViewer from '../components/StoryViewer'
 import ImageCarousel from '../components/ImageCarousel'
 import Avatar from '../components/Avatar'
+import CommentSheet from '../components/CommentSheet'
+import { usePullToRefresh, PullIndicator } from '../hooks/usePullToRefresh'
 
-function PostCard({ post, currentUserId }) {
+function PostCard({ post, currentUserId, onCommentClick }) {
   const [liked, setLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
   const [saved, setSaved] = useState(false)
@@ -111,18 +113,18 @@ function PostCard({ post, currentUserId }) {
       {/* Actions */}
       <div className="flex items-center px-4 pt-3 pb-1">
         <div className="flex items-center gap-1">
-          <button onClick={handleLike} disabled={liking} className="disabled:opacity-50 p-1 -ml-1">
+          <button onClick={handleLike} disabled={liking} className="disabled:opacity-50 p-1 -ml-1 active:scale-90 transition-transform">
             <svg xmlns="http://www.w3.org/2000/svg" className={`w-[22px] h-[22px] transition-all ${liked ? 'text-red-500 fill-red-500 scale-110' : 'text-gray-400 dark:text-gray-500'}`} viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
           </button>
-          <button onClick={() => navigate(`/post/${post.id}?comment=true`)} className="p-1">
+          <button onClick={() => onCommentClick(post.id)} className="p-1 active:scale-90 transition-transform">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-[22px] h-[22px] text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </button>
         </div>
-        <button onClick={handleSave} disabled={saving} className="ml-auto disabled:opacity-50 p-1 -mr-1">
+        <button onClick={handleSave} disabled={saving} className="ml-auto disabled:opacity-50 p-1 -mr-1 active:scale-90 transition-transform">
           <svg xmlns="http://www.w3.org/2000/svg" className={`w-[22px] h-[22px] ${saved ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400 dark:text-gray-500'}`} viewBox="0 0 24 24" fill={saved ? 'currentColor' : 'none'} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
@@ -196,10 +198,31 @@ function Feed() {
   const [storyGroups, setStoryGroups] = useState([])
   const [activeStoryGroup, setActiveStoryGroup] = useState(null)
   const [page, setPage] = useState(0)
+  const [commentPostId, setCommentPostId] = useState(null)
   const PAGE_SIZE = 10
   const observerRef = useRef(null)
   const sentinelRef = useRef(null)
   const navigate = useNavigate()
+
+  const refreshFeed = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const [followsData, blockedData] = await Promise.all([
+      supabase.from('follows').select('following_id').eq('follower_id', user.id),
+      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+    ])
+    const blockedIds = new Set(blockedData.data?.map(b => b.blocked_id) ?? [])
+    const followingIds = (followsData.data?.map(f => f.following_id) ?? []).filter(id => !blockedIds.has(id))
+    const ids = [user.id, ...followingIds]
+    const { data } = await supabase
+      .from('posts')
+      .select('*, profiles(username, avatar_url)')
+      .in('user_id', ids)
+      .order('created_at', { ascending: false })
+      .range(0, PAGE_SIZE - 1)
+    if (data) { setPosts(data); setHasMore(data.length >= PAGE_SIZE); setPage(1) }
+  }, [])
+
+  const { pulling, pullDistance, THRESHOLD, handlers } = usePullToRefresh(refreshFeed)
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -345,23 +368,43 @@ function Feed() {
           <PostSkeleton />
         </div>
       ) : posts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Todavía no hay compras</p>
-          <p className="text-xs text-gray-400">¡Sé el primero en compartir algo!</p>
+        <div className="flex flex-col items-center justify-center py-20 px-6 gap-3 text-gray-400">
+          <div className="w-16 h-16 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-gray-400">Todavía no hay compras</p>
+          <p className="text-xs text-gray-400 text-center">¡Seguí a otros usuarios para ver sus compras acá!</p>
         </div>
       ) : (
-        <div>
+        <div {...handlers}>
+          <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
           {posts.map(post => (
-            <PostCard key={post.id} post={post} currentUserId={currentUserId} />
+            <PostCard key={post.id} post={post} currentUserId={currentUserId} onCommentClick={setCommentPostId} />
           ))}
           <div ref={sentinelRef} className="h-1" />
           {loadingMore && (
-            <div className="py-4 text-center text-xs text-gray-400">Cargando más...</div>
+            <div className="py-4 flex items-center justify-center gap-2 text-xs text-gray-400">
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Cargando más...
+            </div>
           )}
           {!hasMore && posts.length > 0 && (
             <div className="py-6 text-center text-xs text-gray-300">Ya viste todas las compras</div>
           )}
         </div>
+      )}
+
+      {commentPostId && (
+        <CommentSheet
+          postId={commentPostId}
+          currentUserId={currentUserId}
+          onClose={() => setCommentPostId(null)}
+        />
       )}
 
       {activeStoryGroup !== null && (

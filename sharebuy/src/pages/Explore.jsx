@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import EmptyState from '../components/EmptyState'
+import { usePullToRefresh, PullIndicator } from '../hooks/usePullToRefresh'
 
 const CATEGORIES = ['Todo', 'Ropa', 'Tecnología', 'Hogar', 'Deporte', 'Belleza']
 
@@ -15,6 +17,20 @@ function Explore() {
   const [likedIds, setLikedIds] = useState(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({ minPrice: '', maxPrice: '', brand: '' })
+
+  const refreshExplore = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const [postsResult, likesResult, blockedResult] = await Promise.all([
+      supabase.from('posts').select('*, profiles(id, username, avatar_url)').order('created_at', { ascending: false }).limit(40),
+      supabase.from('likes').select('post_id').eq('user_id', user.id),
+      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+    ])
+    const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
+    if (!postsResult.error) setPosts((postsResult.data ?? []).filter(p => !blockedIds.has(p.user_id)))
+    setLikedIds(new Set(likesResult.data?.map(l => l.post_id) ?? []))
+  }, [])
+
+  const { pulling, pullDistance, THRESHOLD, handlers } = usePullToRefresh(refreshExplore)
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -213,55 +229,63 @@ function Explore() {
       {loading ? (
         <div className="grid grid-cols-2 gap-0.5 p-0.5">
           {[1,2,3,4,5,6].map(i => (
-            <div key={i} className="aspect-square bg-gray-100 animate-pulse" />
+            <div key={i} className="aspect-square bg-gray-100 dark:bg-gray-800 animate-pulse rounded-sm" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
-          <p className="text-sm">No se encontró nada</p>
-          <p className="text-xs">Probá con otro término o ajustá los filtros</p>
-        </div>
+        <EmptyState
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          }
+          title={search || filters.brand || filters.minPrice ? 'No se encontró nada' : 'Todavía no hay publicaciones'}
+          subtitle={search || filters.brand || filters.minPrice ? 'Probá con otro término o ajustá los filtros' : 'Las compras de la comunidad aparecen acá'}
+        />
       ) : (
-        <div className="grid grid-cols-2 gap-0.5 p-0.5">
-          {filtered.map((post, index) => (
-            <div
-              key={post.id}
-              className={`bg-gray-50 dark:bg-gray-800 overflow-hidden relative rounded-sm ${index % 3 === 0 ? 'row-span-2' : ''}`}
-              style={{ aspectRatio: index % 3 === 0 ? '3/4' : '1/1' }}
-            >
-              <button onClick={() => navigate(`/post/${post.id}`)} className="w-full h-full">
-                {post.image_url ? (
-                  <img src={post.image_url} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl bg-green-50">🛍️</div>
-                )}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                  <button
-                    onClick={e => { e.stopPropagation(); navigate(`/user/${post.profiles?.id ?? post.user_id}`) }}
-                    className="flex items-center gap-1 mb-0.5"
-                  >
-                    <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-[8px] font-medium overflow-hidden flex-shrink-0">
-                      {post.profiles?.avatar_url
-                        ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" />
-                        : post.profiles?.username?.slice(0, 2).toUpperCase()}
-                    </div>
-                    <span className="text-white text-[10px] font-medium truncate">{post.profiles?.username}</span>
-                  </button>
-                  <p className="text-white text-xs font-medium truncate">{post.product}</p>
-                  {post.price && <p className="text-green-300 text-xs">${post.price}</p>}
-                </div>
-              </button>
-
-              <button
-                onClick={e => handleLike(e, post.id)}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/30 flex items-center justify-center"
+        <div {...handlers}>
+          <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
+          <div className="grid grid-cols-2 gap-0.5 p-0.5">
+            {filtered.map((post, index) => (
+              <div
+                key={post.id}
+                className={`bg-gray-50 dark:bg-gray-800 overflow-hidden relative rounded-sm ${index % 3 === 0 ? 'row-span-2' : ''}`}
+                style={{ aspectRatio: index % 3 === 0 ? '3/4' : '1/1' }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 transition-colors ${likedIds.has(post.id) ? 'text-red-500 fill-red-500' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </button>
-            </div>
-          ))}
+                <button onClick={() => navigate(`/post/${post.id}`)} className="w-full h-full active:opacity-80 transition-opacity">
+                  {(post.image_urls?.[0] || post.image_url) ? (
+                    <img src={post.image_urls?.[0] ?? post.image_url} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-4xl bg-green-50 dark:bg-green-900/20">🛍️</div>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                    <button
+                      onClick={e => { e.stopPropagation(); navigate(`/user/${post.profiles?.id ?? post.user_id}`) }}
+                      className="flex items-center gap-1 mb-0.5"
+                    >
+                      <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-white text-[8px] font-medium overflow-hidden flex-shrink-0">
+                        {post.profiles?.avatar_url
+                          ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" />
+                          : post.profiles?.username?.slice(0, 2).toUpperCase()}
+                      </div>
+                      <span className="text-white text-[10px] font-medium truncate">{post.profiles?.username}</span>
+                    </button>
+                    <p className="text-white text-xs font-medium truncate">{post.product}</p>
+                    {post.price && <p className="text-green-300 text-xs font-medium">${post.price}</p>}
+                  </div>
+                </button>
+
+                <button
+                  onClick={e => handleLike(e, post.id)}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/30 flex items-center justify-center active:scale-90 transition-transform"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 transition-all ${likedIds.has(post.id) ? 'text-red-500 fill-red-500 scale-110' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
