@@ -425,9 +425,10 @@ function Feed() {
 
       {activeStoryGroup !== null && (
         <StoryViewer
-          stories={storyGroups[activeStoryGroup].stories}
-          startIndex={0}
+          groups={storyGroups}
+          groupIndex={activeStoryGroup}
           onClose={() => setActiveStoryGroup(null)}
+          onGroupChange={(i) => setActiveStoryGroup(i)}
         />
       )}
     </div>
