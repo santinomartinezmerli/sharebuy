@@ -36,7 +36,7 @@ function Layout({ children }) {
   }, [])
 
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+    <div className="flex flex-col h-screen max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative">
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
@@ -90,10 +90,10 @@ function Layout({ children }) {
         </div>
       </nav>
 
-      {/* Dark mode toggle flotante */}
+      {/* Dark mode toggle */}
       <button
         onClick={toggle}
-        className="absolute bottom-20 right-2 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm shadow-md"
+        className="absolute bottom-24 right-3 w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-base shadow-lg border border-gray-300 dark:border-gray-600 hover:scale-105 transition-transform"
         title={dark ? 'Modo claro' : 'Modo oscuro'}
       >
         {dark ? '☀️' : '🌙'}
