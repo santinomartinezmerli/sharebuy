@@ -107,14 +107,7 @@ function Chat() {
 
   useLayoutEffect(() => {
     if (messages.length === 0 || !messagesRef.current) return
-    const el = messagesRef.current
-    el.scrollTop = el.scrollHeight
-    // fallback after layout settles
-    requestAnimationFrame(() => {
-      if (messagesRef.current) {
-        messagesRef.current.scrollTop = messagesRef.current.scrollHeight
-      }
-    })
+    messagesRef.current.scrollTop = messagesRef.current.scrollHeight
   }, [messages, otherTyping])
 
   const handleSend = async () => {
@@ -224,7 +217,7 @@ function Chat() {
   )
 
   return (
-    <div className="absolute inset-0 flex flex-col overflow-hidden dark:bg-gray-900 dark:text-white">
+    <div className="flex flex-col flex-1 overflow-hidden dark:bg-gray-900 dark:text-white">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <button onClick={() => navigate('/messages')} className="text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
