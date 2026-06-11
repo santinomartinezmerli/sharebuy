@@ -180,7 +180,7 @@ function PostDetail() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <span className="text-sm font-medium text-gray-900">Publicación</span>
+        <span className="text-sm font-medium text-gray-900 dark:text-white">Publicación</span>
         <div className="flex items-center gap-3">
           <button onClick={handleWhatsApp} className="text-green-500" title="Compartir en WhatsApp">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -254,7 +254,7 @@ function PostDetail() {
             <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
               <span className="text-7xl">🛍️</span>
               {post.brand && (
-                <span className="absolute bottom-3 left-3 bg-white text-green-700 text-xs font-medium px-3 py-1 rounded-full border border-green-100">
+                <span className="absolute bottom-3 left-3 bg-white dark:bg-gray-800 text-green-700 dark:text-green-300 text-xs font-medium px-3 py-1 rounded-full border border-green-100 dark:border-green-700">
                   {post.brand}
                 </span>
               )}
@@ -263,18 +263,18 @@ function PostDetail() {
         }
 
         {/* Autor */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
           <button onClick={() => navigate(`/user/${post.user_id}`)} className="flex items-center gap-3 flex-1">
             <Avatar url={post.profiles?.avatar_url} username={post.profiles?.username} size="sm" />
-            <span className="text-sm font-medium text-gray-900">{post.profiles?.username ?? 'usuario'}</span>
+            <span className="text-sm font-medium text-gray-900 dark:text-white">{post.profiles?.username ?? 'usuario'}</span>
           </button>
           <span className="text-xs text-gray-400">{new Date(post.created_at).toLocaleDateString('es-AR')}</span>
         </div>
 
         {/* Info del producto */}
-        <div className="px-4 py-4 border-b border-gray-100">
+        <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-start justify-between mb-1">
-            <h1 className="text-lg font-semibold text-gray-900">{post.product}</h1>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{post.product}</h1>
             <div className="flex items-center gap-2">
               <button onClick={handleSave}>
                 <svg xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 ${saved ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -310,7 +310,7 @@ function PostDetail() {
                 .from('posts').update({ for_sale: !post.for_sale })
                 .eq('id', post.id).select().single()
               if (data) setPost(data)
-            }} className={`mt-3 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${post.for_sale ? 'border-red-200 text-red-500' : 'border-green-200 text-green-600'}`}>
+            }} className={`mt-3 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors bg-white dark:bg-white ${post.for_sale ? 'border-red-200 text-red-500' : 'border-green-200 text-green-600'}`}>
               {post.for_sale ? 'Quitar de venta' : 'Poner en venta'}
             </button>
           )}
