@@ -36,12 +36,12 @@ function Layout({ children }) {
   }, [])
 
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative">
-      <main className="flex-1 overflow-y-auto pt-[env(safe-area-inset-top)]">
+    <div className="flex flex-col h-dvh max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden">
+      <main className="flex-1 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         {children}
       </main>
 
-      <nav className="border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 pb-[env(safe-area-inset-bottom)]">
+      <nav className="border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <div className="flex items-center justify-around py-2">
           <NavLink to="/feed" className={({ isActive }) =>
             `flex flex-col items-center p-2 ${isActive ? 'text-green-500' : 'text-gray-400'}`
