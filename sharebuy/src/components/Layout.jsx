@@ -82,14 +82,12 @@ function Layout({ children }) {
     <div className="flex flex-col h-dvh max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden">
       <main ref={mainRef} className={`flex-1 ${location.pathname.startsWith('/messages/') ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'} overscroll-contain pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] relative`}>
         <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
-        <AnimatePresence mode="popLayout" initial={false}>
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}
-            initial={{ x: direction > 0 ? '100%' : '-100%', opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: direction > 0 ? '-30%' : '30%', opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-            className="h-full"
+            initial={{ opacity: 0, x: direction > 0 ? 30 : -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2 }}
           >
             {children}
           </motion.div>
