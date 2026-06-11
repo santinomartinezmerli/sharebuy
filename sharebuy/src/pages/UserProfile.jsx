@@ -105,22 +105,30 @@ function UserProfile() {
 
       <div className="px-4 py-4 border-b border-gray-100">
         <div className="flex items-center gap-4 mb-3">
-          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xl font-medium">
-            {profile?.username?.slice(0, 2).toUpperCase()}
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xl font-medium overflow-hidden flex-shrink-0">
+            {profile?.avatar_url
+              ? <img src={profile.avatar_url} className="w-full h-full object-cover" />
+              : profile?.username?.slice(0, 2).toUpperCase()}
           </div>
           <div className="flex gap-6 flex-1 justify-center">
             <div className="flex flex-col items-center">
               <span className="text-base font-semibold text-gray-900">{posts.length}</span>
               <span className="text-xs text-gray-400">compras</span>
             </div>
-            <div className="flex flex-col items-center">
+            <button
+              onClick={() => navigate(`/user/${userId}/follow?type=followers`)}
+              className="flex flex-col items-center"
+            >
               <span className="text-base font-semibold text-gray-900">{followersCount}</span>
               <span className="text-xs text-gray-400">seguidores</span>
-            </div>
-            <div className="flex flex-col items-center">
+            </button>
+            <button
+              onClick={() => navigate(`/user/${userId}/follow?type=following`)}
+              className="flex flex-col items-center"
+            >
               <span className="text-base font-semibold text-gray-900">{followingCount}</span>
               <span className="text-xs text-gray-400">siguiendo</span>
-            </div>
+            </button>
           </div>
         </div>
         <p className="text-sm font-medium text-gray-900">{profile?.username}</p>
