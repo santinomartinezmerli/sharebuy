@@ -1,8 +1,39 @@
+import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import { useDarkMode } from '../lib/DarkModeContext'
 
 function Layout({ children }) {
   const { dark, toggle } = useDarkMode()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    let channel
+    const fetchUnread = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .not('sender_id', 'eq', user.id)
+        .is('read_at', null)
+        .in('conversation_id', (
+          await supabase.from('conversations').select('id').or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+        ).data?.map(c => c.id) ?? [])
+      setUnreadCount(count ?? 0)
+
+      channel = supabase.channel('unread-messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+          if (payload.new.sender_id !== user.id) {
+            setUnreadCount(prev => prev + 1)
+          }
+        })
+        .subscribe()
+    }
+    fetchUnread()
+    return () => { if (channel) supabase.removeChannel(channel) }
+  }, [])
 
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
@@ -37,9 +68,16 @@ function Layout({ children }) {
           <NavLink to="/messages" className={({ isActive }) =>
             `flex flex-col items-center p-2 ${isActive ? 'text-green-500' : 'text-gray-400'}`
           }>
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
+            <div className="relative">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </div>
           </NavLink>
 
           <NavLink to="/profile" className={({ isActive }) =>

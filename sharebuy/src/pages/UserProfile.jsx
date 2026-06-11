@@ -8,6 +8,7 @@ function UserProfile() {
   const [profile, setProfile] = useState(null)
   const [posts, setPosts] = useState([])
   const [following, setFollowing] = useState(false)
+  const [blocked, setBlocked] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [currentUserId, setCurrentUserId] = useState(null)
@@ -37,13 +38,20 @@ function UserProfile() {
         .from('follows').select('id')
         .eq('follower_id', user.id)
         .eq('following_id', userId)
-        .single()
+        .maybeSingle()
+
+      const { data: blockData } = await supabase
+        .from('blocked_users').select('id')
+        .eq('blocker_id', user.id)
+        .eq('blocked_id', userId)
+        .maybeSingle()
 
       setProfile(profileData)
       setPosts(postsData ?? [])
       setFollowersCount(followers ?? 0)
       setFollowingCount(followingC ?? 0)
       setFollowing(!!followData)
+      setBlocked(!!blockData)
       setLoading(false)
     }
     fetch()
@@ -85,6 +93,20 @@ function UserProfile() {
       .single()
 
     if (!error) navigate(`/messages/${newConv.id}`)
+  }
+
+  const handleBlock = async () => {
+    if (blocked) {
+      await supabase.from('blocked_users').delete()
+        .eq('blocker_id', currentUserId)
+        .eq('blocked_id', userId)
+      setBlocked(false)
+    } else {
+      await supabase.from('blocked_users').insert({
+        blocker_id: currentUserId, blocked_id: userId
+      })
+      setBlocked(true)
+    }
   }
 
   if (loading) return (
@@ -135,22 +157,30 @@ function UserProfile() {
         {profile?.bio && <p className="text-sm text-gray-500 mt-1">{profile.bio}</p>}
 
         {currentUserId !== userId && (
-          <div className="flex gap-3 mt-3">
+          <div className="flex flex-col gap-2 mt-3">
+            <div className="flex gap-3">
+              <button
+                onClick={handleFollow}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  following
+                    ? 'border border-gray-200 text-gray-700'
+                    : 'bg-green-500 text-white'
+                }`}
+              >
+                {following ? 'Siguiendo' : 'Seguir'}
+              </button>
+              <button
+                onClick={handleMessage}
+                className="flex-1 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-700"
+              >
+                Mensaje
+              </button>
+            </div>
             <button
-              onClick={handleFollow}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                following
-                  ? 'border border-gray-200 text-gray-700'
-                  : 'bg-green-500 text-white'
-              }`}
+              onClick={handleBlock}
+              className={`text-xs self-end transition-colors ${blocked ? 'text-gray-400' : 'text-red-400'}`}
             >
-              {following ? 'Siguiendo' : 'Seguir'}
-            </button>
-            <button
-              onClick={handleMessage}
-              className="flex-1 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-700"
-            >
-              Mensaje
+              {blocked ? 'Desbloquear usuario' : 'Bloquear usuario'}
             </button>
           </div>
         )}
