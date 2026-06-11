@@ -35,8 +35,8 @@ function Login() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4">
-      <div className="bg-white p-8 rounded-2xl border border-gray-100 w-full max-w-sm flex flex-col items-center gap-6">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 px-4">
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl border border-gray-100 dark:border-gray-700 w-full max-w-sm flex flex-col items-center gap-6">
 
         <div className="flex flex-col items-center gap-2">
           <h1 className="text-3xl font-semibold tracking-tight">

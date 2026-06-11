@@ -1,1 +1,7 @@
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  * { @apply border-gray-100; }
+  .dark * { @apply border-gray-700; }
+}

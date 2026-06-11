@@ -11,16 +11,29 @@ function Explore() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('Todo')
-  const [tab, setTab] = useState('posts')
+  const [currentUserId, setCurrentUserId] = useState(null)
+  const [likedIds, setLikedIds] = useState(new Set())
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState({ minPrice: '', maxPrice: '', brand: '' })
 
   useEffect(() => {
     const fetchPosts = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserId(user.id)
+
       const { data, error } = await supabase
         .from('posts')
-        .select('*, profiles(username)')
+        .select('*, profiles(id, username, avatar_url)')
         .order('created_at', { ascending: false })
 
       if (!error) setPosts(data)
+
+      const { data: likesData } = await supabase
+        .from('likes')
+        .select('post_id')
+        .eq('user_id', user.id)
+
+      setLikedIds(new Set(likesData?.map(l => l.post_id) ?? []))
       setLoading(false)
     }
 
@@ -43,18 +56,47 @@ function Explore() {
     searchUsers()
   }, [search])
 
+  const handleLike = async (e, postId) => {
+    e.stopPropagation()
+    const isLiked = likedIds.has(postId)
+
+    if (isLiked) {
+      await supabase.from('likes').delete()
+        .eq('post_id', postId)
+        .eq('user_id', currentUserId)
+      setLikedIds(prev => {
+        const next = new Set(prev)
+        next.delete(postId)
+        return next
+      })
+    } else {
+      await supabase.from('likes').insert({ post_id: postId, user_id: currentUserId })
+      setLikedIds(prev => new Set([...prev, postId]))
+    }
+  }
+
   const filtered = posts.filter(post => {
     const matchSearch = search === '' ||
       post.product.toLowerCase().includes(search.toLowerCase()) ||
       post.brand?.toLowerCase().includes(search.toLowerCase())
+
     const matchCategory = category === 'Todo' || post.category === category
-    return matchSearch && matchCategory
+
+    const priceNum = parseFloat(post.price)
+    const matchMin = !filters.minPrice || (!isNaN(priceNum) && priceNum >= parseFloat(filters.minPrice))
+    const matchMax = !filters.maxPrice || (!isNaN(priceNum) && priceNum <= parseFloat(filters.maxPrice))
+    const matchBrand = !filters.brand || post.brand?.toLowerCase().includes(filters.brand.toLowerCase())
+
+    return matchSearch && matchCategory && matchMin && matchMax && matchBrand
   })
 
+  const brands = [...new Set(posts.map(p => p.brand).filter(Boolean))].sort()
+
   return (
-    <div className="flex flex-col">
-      <div className="px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
+    <div className="flex flex-col dark:bg-gray-900 dark:text-white">
+      {/* Search bar */}
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+        <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200 flex-1">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -72,8 +114,62 @@ function Explore() {
             </button>
           )}
         </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`p-2 rounded-lg border transition-colors ${showFilters ? 'bg-green-50 border-green-200 text-green-600' : 'border-gray-200 text-gray-400'}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+        </button>
       </div>
 
+      {/* Filters panel */}
+      {showFilters && (
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex flex-col gap-3">
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-[10px] text-gray-400 uppercase tracking-wide">Precio mínimo</label>
+              <input
+                value={filters.minPrice}
+                onChange={e => setFilters({ ...filters, minPrice: e.target.value })}
+                placeholder="$0"
+                type="number"
+                className="w-full mt-1 px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-400"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] text-gray-400 uppercase tracking-wide">Precio máximo</label>
+              <input
+                value={filters.maxPrice}
+                onChange={e => setFilters({ ...filters, maxPrice: e.target.value })}
+                placeholder="$999"
+                type="number"
+                className="w-full mt-1 px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-400"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-400 uppercase tracking-wide">Marca</label>
+            <select
+              value={filters.brand}
+              onChange={e => setFilters({ ...filters, brand: e.target.value })}
+              className="w-full mt-1 px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-400 bg-white"
+            >
+              <option value="">Todas las marcas</option>
+              {brands.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={() => setFilters({ minPrice: '', maxPrice: '', brand: '' })}
+            className="text-xs text-gray-500 self-end"
+          >
+            Limpiar filtros
+          </button>
+        </div>
+      )}
+
+      {/* Users results */}
       {search.length >= 2 && users.length > 0 && (
         <div className="border-b border-gray-100">
           <p className="text-xs text-gray-400 uppercase tracking-wide px-4 pt-3 pb-2">Usuarios</p>
@@ -83,8 +179,10 @@ function Explore() {
               onClick={() => navigate(`/user/${user.id}`)}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50"
             >
-              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-medium flex-shrink-0">
-                {user.username?.slice(0, 2).toUpperCase()}
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-medium flex-shrink-0 overflow-hidden">
+                {user.avatar_url
+                  ? <img src={user.avatar_url} className="w-full h-full object-cover" />
+                  : user.username?.slice(0, 2).toUpperCase()}
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-medium text-gray-900">{user.username}</p>
@@ -98,6 +196,7 @@ function Explore() {
         </div>
       )}
 
+      {/* Categories */}
       <div className="flex gap-2 px-4 py-3 overflow-x-auto border-b border-gray-100">
         {CATEGORIES.map(cat => (
           <button
@@ -114,36 +213,58 @@ function Explore() {
         ))}
       </div>
 
+      {/* Posts grid */}
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-sm text-gray-400">
-          Cargando...
+        <div className="grid grid-cols-2 gap-0.5 p-0.5">
+          {[1,2,3,4,5,6].map(i => (
+            <div key={i} className="aspect-square bg-gray-100 animate-pulse" />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
           <p className="text-sm">No se encontró nada</p>
-          <p className="text-xs">Probá con otro término</p>
+          <p className="text-xs">Probá con otro término o ajustá los filtros</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-0.5 p-0.5">
           {filtered.map((post, index) => (
-            <button
+            <div
               key={post.id}
-              onClick={() => navigate(`/post/${post.id}`)}
               className={`bg-gray-50 overflow-hidden relative ${index % 3 === 0 ? 'row-span-2' : ''}`}
               style={{ aspectRatio: index % 3 === 0 ? '3/4' : '1/1' }}
             >
-              {post.image_url ? (
-                <img src={post.image_url} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-4xl bg-green-50">
-                  🛍️
+              <button onClick={() => navigate(`/post/${post.id}`)} className="w-full h-full">
+                {post.image_url ? (
+                  <img src={post.image_url} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-4xl bg-green-50">🛍️</div>
+                )}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                  <button
+                    onClick={e => { e.stopPropagation(); navigate(`/user/${post.profiles?.id ?? post.user_id}`) }}
+                    className="flex items-center gap-1 mb-0.5"
+                  >
+                    <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-[8px] font-medium overflow-hidden flex-shrink-0">
+                      {post.profiles?.avatar_url
+                        ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" />
+                        : post.profiles?.username?.slice(0, 2).toUpperCase()}
+                    </div>
+                    <span className="text-white text-[10px] font-medium truncate">{post.profiles?.username}</span>
+                  </button>
+                  <p className="text-white text-xs font-medium truncate">{post.product}</p>
+                  {post.price && <p className="text-green-300 text-xs">${post.price}</p>}
                 </div>
-              )}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/40 to-transparent p-2">
-                <p className="text-white text-xs font-medium truncate">{post.product}</p>
-                {post.price && <p className="text-green-300 text-xs">${post.price}</p>}
-              </div>
-            </button>
+              </button>
+
+              <button
+                onClick={e => handleLike(e, post.id)}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/30 flex items-center justify-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 transition-colors ${likedIds.has(post.id) ? 'text-red-500 fill-red-500' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </button>
+            </div>
           ))}
         </div>
       )}

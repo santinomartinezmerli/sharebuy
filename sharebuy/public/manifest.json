@@ -1,0 +1,16 @@
+{
+  "name": "ShareBuy",
+  "short_name": "ShareBuy",
+  "description": "Compartí tus compras con amigos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#22c55e",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

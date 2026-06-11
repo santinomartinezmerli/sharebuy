@@ -77,8 +77,8 @@ function NewPost() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+    <div className="flex flex-col h-full dark:bg-gray-900 dark:text-white">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <button onClick={() => navigate('/feed')} className="text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />

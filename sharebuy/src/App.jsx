@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import { DarkModeProvider } from './lib/DarkModeContext'
 import Login from './pages/Login'
 import Feed from './pages/Feed'
 import Explore from './pages/Explore'
@@ -60,6 +61,7 @@ useEffect(() => {
 
   return (
     <BrowserRouter>
+      <DarkModeProvider>
       <Layout>
         <Routes>
           <Route path="/" element={<Navigate to="/feed" />} />
@@ -78,6 +80,7 @@ useEffect(() => {
           <Route path="/edit-post/:postId" element={<EditPost />} />
         </Routes>
       </Layout>
+      </DarkModeProvider>
     </BrowserRouter>
   )
 }

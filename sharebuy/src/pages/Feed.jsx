@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import StoryViewer from '../components/StoryViewer'
@@ -8,6 +8,7 @@ import Avatar from '../components/Avatar'
 function PostCard({ post, currentUserId }) {
   const [liked, setLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
+  const [saved, setSaved] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -24,8 +25,16 @@ function PostCard({ post, currentUserId }) {
         .eq('user_id', currentUserId)
         .single()
 
+      const { data: savedData } = await supabase
+        .from('saves')
+        .select('id')
+        .eq('post_id', post.id)
+        .eq('user_id', currentUserId)
+        .maybeSingle()
+
       setLikesCount(count ?? 0)
       setLiked(!!userLike)
+      setSaved(!!savedData)
     }
     fetchLikes()
   }, [post.id, currentUserId])
@@ -43,13 +52,23 @@ function PostCard({ post, currentUserId }) {
     }
   }
 
+  const handleSave = async (e) => {
+    e.stopPropagation()
+    if (saved) {
+      await supabase.from('saves').delete().eq('post_id', post.id).eq('user_id', currentUserId)
+      setSaved(false)
+    } else {
+      await supabase.from('saves').insert({ post_id: post.id, user_id: currentUserId })
+      setSaved(true)
+    }
+  }
+
   const imageUrls = (post.image_urls && post.image_urls.length > 0)
     ? post.image_urls
     : (post.image_url ? [post.image_url] : [])
 
   return (
     <div className="bg-white border-b border-gray-100">
-      {/* Header del post */}
       <div className="flex items-center gap-3 px-4 py-3">
         <button onClick={() => navigate(`/user/${post.user_id}`)}>
           <Avatar url={post.profiles?.avatar_url} username={post.profiles?.username} size="md" />
@@ -62,7 +81,6 @@ function PostCard({ post, currentUserId }) {
         </div>
       </div>
 
-      {/* Imagen / Carousel */}
       {imageUrls.length > 0 ? (
         <button onClick={() => navigate(`/post/${post.id}`)} className="w-full block">
           <ImageCarousel images={imageUrls} brand={post.brand} />
@@ -80,7 +98,6 @@ function PostCard({ post, currentUserId }) {
         </button>
       )}
 
-      {/* Acciones */}
       <div className="px-4 py-3 flex flex-col gap-1">
         <div className="flex items-center gap-4">
           <button onClick={handleLike} className="flex items-center gap-1">
@@ -89,9 +106,14 @@ function PostCard({ post, currentUserId }) {
             </svg>
             {likesCount > 0 && <span className="text-xs text-gray-400">{likesCount}</span>}
           </button>
-          <button onClick={() => navigate(`/post/${post.id}`)} className="flex items-center gap-1">
+          <button onClick={() => navigate(`/post/${post.id}`)}>
             <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </button>
+          <button onClick={handleSave}>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-6 h-6 ${saved ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
           </button>
         </div>
@@ -116,12 +138,40 @@ function PostCard({ post, currentUserId }) {
   )
 }
 
+function PostSkeleton() {
+  return (
+    <div className="bg-white border-b border-gray-100 animate-pulse">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="w-9 h-9 rounded-full bg-gray-200" />
+        <div className="flex-1 space-y-1.5">
+          <div className="h-3 bg-gray-200 rounded w-24" />
+          <div className="h-2.5 bg-gray-100 rounded w-16" />
+        </div>
+      </div>
+      <div className="aspect-square bg-gray-100" />
+      <div className="px-4 py-3 space-y-2">
+        <div className="flex gap-4">
+          <div className="w-6 h-6 rounded bg-gray-200" />
+          <div className="w-6 h-6 rounded bg-gray-200" />
+        </div>
+        <div className="h-3 bg-gray-200 rounded w-3/4" />
+      </div>
+    </div>
+  )
+}
+
 function Feed() {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [currentUserId, setCurrentUserId] = useState(null)
   const [storyGroups, setStoryGroups] = useState([])
   const [activeStoryGroup, setActiveStoryGroup] = useState(null)
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 10
+  const observerRef = useRef(null)
+  const sentinelRef = useRef(null)
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -141,16 +191,18 @@ function Feed() {
 
       const { data, error } = await supabase
         .from('posts')
-        .select('*, profiles(username, avatar_url)')   // ← avatar_url incluido
+        .select('*, profiles(username, avatar_url)')
         .in('user_id', ids)
         .order('created_at', { ascending: false })
+        .range(0, PAGE_SIZE - 1)
 
       if (!error) {
-        setPosts(data)
+        setPosts(data ?? [])
+        setHasMore((data?.length ?? 0) >= PAGE_SIZE)
+        setPage(1)
 
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
-        const recentPosts = data.filter(p => new Date(p.created_at) > oneDayAgo)
-
+        const recentPosts = (data ?? []).filter(p => new Date(p.created_at) > oneDayAgo)
         const groups = {}
         recentPosts.forEach(post => {
           if (!groups[post.user_id]) {
@@ -170,10 +222,51 @@ function Feed() {
     fetchPosts()
   }, [])
 
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return
+    setLoadingMore(true)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: followsData } = await supabase
+      .from('follows').select('following_id').eq('follower_id', user.id)
+    const followingIds = followsData?.map(f => f.following_id) ?? []
+    const ids = [user.id, ...followingIds]
+
+    const from = page * PAGE_SIZE
+    const to = from + PAGE_SIZE - 1
+
+    const { data } = await supabase
+      .from('posts')
+      .select('*, profiles(username, avatar_url)')
+      .in('user_id', ids)
+      .order('created_at', { ascending: false })
+      .range(from, to)
+
+    if (data && data.length > 0) {
+      setPosts(prev => [...prev, ...data])
+      setPage(prev => prev + 1)
+      setHasMore(data.length >= PAGE_SIZE)
+    } else {
+      setHasMore(false)
+    }
+    setLoadingMore(false)
+  }, [page, loadingMore, hasMore])
+
+  useEffect(() => {
+    if (!sentinelRef.current) return
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        loadMore()
+      }
+    }, { threshold: 0.1 })
+    obs.observe(sentinelRef.current)
+    observerRef.current = obs
+    return () => obs.disconnect()
+  }, [loadMore, hasMore, loadingMore])
+
   return (
-    <div className="flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+    <div className="flex flex-col dark:bg-gray-900 dark:text-white">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <h1 className="text-xl font-semibold tracking-tight">
           share<span className="text-green-500">buy</span>
         </h1>
@@ -192,15 +285,10 @@ function Feed() {
         </div>
       </div>
 
-      {/* Stories */}
       {storyGroups.length > 0 && (
         <div className="flex gap-3 px-4 py-3 overflow-x-auto border-b border-gray-100">
           {storyGroups.map((group, index) => (
-            <button
-              key={group.userId}
-              onClick={() => setActiveStoryGroup(index)}
-              className="flex flex-col items-center gap-1 flex-shrink-0"
-            >
+            <button key={group.userId} onClick={() => setActiveStoryGroup(index)} className="flex flex-col items-center gap-1 flex-shrink-0">
               <div className="w-14 h-14 rounded-full p-0.5 border-2 border-green-500">
                 <div className="w-full h-full rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-medium overflow-hidden">
                   {group.avatarUrl
@@ -218,7 +306,11 @@ function Feed() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
+        <div>
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
+        </div>
       ) : posts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-gray-400">
           <p className="text-sm">Todavía no hay compras</p>
@@ -229,6 +321,13 @@ function Feed() {
           {posts.map(post => (
             <PostCard key={post.id} post={post} currentUserId={currentUserId} />
           ))}
+          <div ref={sentinelRef} className="h-1" />
+          {loadingMore && (
+            <div className="py-4 text-center text-xs text-gray-400">Cargando más...</div>
+          )}
+          {!hasMore && posts.length > 0 && (
+            <div className="py-6 text-center text-xs text-gray-300">Ya viste todas las compras</div>
+          )}
         </div>
       )}
 

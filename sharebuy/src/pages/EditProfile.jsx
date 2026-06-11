@@ -8,6 +8,7 @@ function EditProfile() {
   const [avatarUrl, setAvatarUrl] = useState(null)
   const [avatarFile, setAvatarFile] = useState(null)
   const [avatarPreview, setAvatarPreview] = useState(null)
+  const [removeAvatar, setRemoveAvatar] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -38,6 +39,13 @@ function EditProfile() {
     if (!file) return
     setAvatarFile(file)
     setAvatarPreview(URL.createObjectURL(file))
+    setRemoveAvatar(false)
+  }
+
+  const handleRemoveAvatar = () => {
+    setRemoveAvatar(true)
+    setAvatarFile(null)
+    setAvatarPreview(null)
   }
 
   const handleSave = async () => {
@@ -45,10 +53,9 @@ function EditProfile() {
     setSaving(true)
     setError(null)
 
-    let newAvatarUrl = avatarUrl
+    let newAvatarUrl = removeAvatar ? null : avatarUrl
 
-    // Subir nueva foto si hay
-    if (avatarFile) {
+    if (avatarFile && !removeAvatar) {
       const ext = avatarFile.name.split('.').pop()
       const filename = `avatar-${userId}-${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
@@ -89,16 +96,14 @@ function EditProfile() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center py-20 text-sm text-gray-400">
-      Cargando...
-    </div>
+    <div className="flex items-center justify-center py-20 text-sm text-gray-400">Cargando...</div>
   )
 
-  const displayAvatar = avatarPreview || avatarUrl
+  const displayAvatar = avatarPreview || (removeAvatar ? null : avatarUrl)
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+    <div className="flex flex-col h-full dark:bg-gray-900 dark:text-white">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <button onClick={() => navigate(-1)} className="text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
@@ -133,6 +138,16 @@ function EditProfile() {
             </div>
           </label>
           <p className="text-xs text-gray-400">Tocar para cambiar foto</p>
+          {avatarUrl && !removeAvatar && (
+            <button onClick={handleRemoveAvatar} className="text-xs text-red-500 font-medium">
+              Quitar foto
+            </button>
+          )}
+          {removeAvatar && (
+            <button onClick={() => setRemoveAvatar(false)} className="text-xs text-gray-500 font-medium">
+              Cancelar
+            </button>
+          )}
         </div>
 
         {error && (

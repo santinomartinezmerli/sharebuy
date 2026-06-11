@@ -1,16 +1,17 @@
 import { NavLink } from 'react-router-dom'
+import { useDarkMode } from '../lib/DarkModeContext'
 
 function Layout({ children }) {
+  const { dark, toggle } = useDarkMode()
+
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-white">
-      
+    <div className="flex flex-col h-screen max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
 
-      <nav className="border-t border-gray-100 bg-white">
+      <nav className="border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900">
         <div className="flex items-center justify-around py-2">
-          
           <NavLink to="/feed" className={({ isActive }) =>
             `flex flex-col items-center p-2 ${isActive ? 'text-green-500' : 'text-gray-400'}`
           }>
@@ -48,9 +49,17 @@ function Layout({ children }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </NavLink>
-
         </div>
       </nav>
+
+      {/* Dark mode toggle flotante */}
+      <button
+        onClick={toggle}
+        className="absolute bottom-20 right-2 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm shadow-md"
+        title={dark ? 'Modo claro' : 'Modo oscuro'}
+      >
+        {dark ? '☀️' : '🌙'}
+      </button>
     </div>
   )
 }

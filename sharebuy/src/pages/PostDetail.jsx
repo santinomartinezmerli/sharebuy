@@ -16,6 +16,12 @@ function PostDetail() {
   const [sending, setSending] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [editingCommentId, setEditingCommentId] = useState(null)
+  const [editCommentText, setEditCommentText] = useState('')
+  const [editingReviewId, setEditingReviewId] = useState(null)
+  const [editReviewContent, setEditReviewContent] = useState('')
+  const [copied, setCopied] = useState(false)
   const commentsEndRef = useRef(null)
 
   useEffect(() => {
@@ -41,9 +47,17 @@ function PostDetail() {
         .eq('post_id', postId)
         .order('created_at', { ascending: true })
 
+      const { data: savedData } = await supabase
+        .from('saves')
+        .select('id')
+        .eq('post_id', postId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
       setPost(postData)
       setReviews(reviewsData ?? [])
       setComments(commentsData ?? [])
+      setSaved(!!savedData)
       setLoading(false)
     }
     fetch()
@@ -67,10 +81,52 @@ function PostDetail() {
     setSending(false)
   }
 
-  const handleDelete = async () => {
+  const handleDeletePost = async () => {
     setDeleting(true)
     await supabase.from('posts').delete().eq('id', postId)
     navigate('/profile', { replace: true })
+  }
+
+  const handleDeleteComment = async (commentId) => {
+    await supabase.from('comments').delete().eq('id', commentId)
+    setComments(prev => prev.filter(c => c.id !== commentId))
+  }
+
+  const handleEditComment = async (commentId) => {
+    if (!editCommentText.trim()) return
+    await supabase.from('comments').update({ content: editCommentText.trim() }).eq('id', commentId)
+    setComments(prev => prev.map(c => c.id === commentId ? { ...c, content: editCommentText.trim() } : c))
+    setEditingCommentId(null)
+    setEditCommentText('')
+  }
+
+  const handleDeleteReview = async (reviewId) => {
+    await supabase.from('reviews').delete().eq('id', reviewId)
+    setReviews(prev => prev.filter(r => r.id !== reviewId))
+  }
+
+  const handleEditReview = async (reviewId) => {
+    if (!editReviewContent.trim()) return
+    await supabase.from('reviews').update({ content: editReviewContent.trim() }).eq('id', reviewId)
+    setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, content: editReviewContent.trim() } : r))
+    setEditingReviewId(null)
+    setEditReviewContent('')
+  }
+
+  const handleShare = async () => {
+    await navigator.clipboard.writeText(window.location.href)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleSave = async () => {
+    if (saved) {
+      await supabase.from('saves').delete().eq('post_id', postId).eq('user_id', currentUserId)
+      setSaved(false)
+    } else {
+      await supabase.from('saves').insert({ post_id: postId, user_id: currentUserId })
+      setSaved(true)
+    }
   }
 
   if (loading) return (
@@ -85,50 +141,50 @@ function PostDetail() {
   const recommendedPct = reviews.length > 0
     ? Math.round((reviews.filter(r => r.recommended).length / reviews.length) * 100)
     : null
-
   const imageUrls = (post.image_urls && post.image_urls.length > 0)
     ? post.image_urls
     : (post.image_url ? [post.image_url] : [])
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full dark:bg-gray-900 dark:text-white">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <button onClick={() => navigate(-1)} className="text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <span className="text-sm font-medium text-gray-900">Publicación</span>
-        {isOwner ? (
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate(`/edit-post/${postId}`)} className="text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-            <button onClick={() => setConfirmDelete(true)} className="text-red-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
-        ) : (
-          <div className="w-14" />
-        )}
+        <div className="flex items-center gap-3">
+          <button onClick={handleShare} className="text-gray-400" title="Compartir">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          </button>
+          {copied && <span className="text-[10px] text-green-500 font-medium">¡Link copiado!</span>}
+          {isOwner && (
+            <>
+              <button onClick={() => navigate(`/edit-post/${postId}`)} className="text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button onClick={() => setConfirmDelete(true)} className="text-red-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Confirmación de borrado */}
       {confirmDelete && (
         <div className="mx-4 mt-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between">
           <p className="text-sm text-red-700 font-medium">¿Eliminar publicación?</p>
           <div className="flex gap-3">
             <button onClick={() => setConfirmDelete(false)} className="text-sm text-gray-500">Cancelar</button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="text-sm font-medium text-red-600"
-            >
+            <button onClick={handleDeletePost} disabled={deleting} className="text-sm font-medium text-red-600">
               {deleting ? 'Eliminando...' : 'Eliminar'}
             </button>
           </div>
@@ -136,7 +192,6 @@ function PostDetail() {
       )}
 
       <div className="flex-1 overflow-y-auto">
-        {/* Imagen / Carousel */}
         {imageUrls.length > 0
           ? <ImageCarousel images={imageUrls} brand={post.brand} />
           : (
@@ -153,10 +208,7 @@ function PostDetail() {
 
         {/* Autor */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-          <button
-            onClick={() => navigate(`/user/${post.user_id}`)}
-            className="flex items-center gap-3 flex-1"
-          >
+          <button onClick={() => navigate(`/user/${post.user_id}`)} className="flex items-center gap-3 flex-1">
             <Avatar url={post.profiles?.avatar_url} username={post.profiles?.username} size="sm" />
             <span className="text-sm font-medium text-gray-900">{post.profiles?.username ?? 'usuario'}</span>
           </button>
@@ -167,11 +219,18 @@ function PostDetail() {
         <div className="px-4 py-4 border-b border-gray-100">
           <div className="flex items-start justify-between mb-1">
             <h1 className="text-lg font-semibold text-gray-900">{post.product}</h1>
-            {post.for_sale && (
-              <span className="bg-green-50 text-green-700 text-xs font-medium px-2 py-1 rounded-full border border-green-200 flex-shrink-0 ml-2">
-                En venta
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              <button onClick={handleSave}>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 ${saved ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+              </button>
+              {post.for_sale && (
+                <span className="bg-green-50 text-green-700 text-xs font-medium px-2 py-1 rounded-full border border-green-200 flex-shrink-0 ml-2">
+                  En venta
+                </span>
+              )}
+            </div>
           </div>
           {post.caption && <p className="text-sm text-gray-500 mb-2">{post.caption}</p>}
           <div className="flex items-center gap-3 flex-wrap">
@@ -190,26 +249,18 @@ function PostDetail() {
           </div>
 
           {isOwner && (
-            <button
-              onClick={async () => {
-                const { data } = await supabase
-                  .from('posts').update({ for_sale: !post.for_sale })
-                  .eq('id', post.id).select().single()
-                if (data) setPost(data)
-              }}
-              className={`mt-3 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
-                post.for_sale ? 'border-red-200 text-red-500' : 'border-green-200 text-green-600'
-              }`}
-            >
+            <button onClick={async () => {
+              const { data } = await supabase
+                .from('posts').update({ for_sale: !post.for_sale })
+                .eq('id', post.id).select().single()
+              if (data) setPost(data)
+            }} className={`mt-3 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${post.for_sale ? 'border-red-200 text-red-500' : 'border-green-200 text-green-600'}`}>
               {post.for_sale ? 'Quitar de venta' : 'Poner en venta'}
             </button>
           )}
 
           {!isOwner && post.for_sale && (
-            <button
-              onClick={() => navigate(`/user/${post.user_id}`)}
-              className="mt-3 w-full py-2.5 bg-green-500 text-white text-sm font-medium rounded-lg"
-            >
+            <button onClick={() => navigate(`/user/${post.user_id}`)} className="mt-3 w-full py-2.5 bg-green-500 text-white text-sm font-medium rounded-lg">
               Contactar vendedor
             </button>
           )}
@@ -226,9 +277,7 @@ function PostDetail() {
             </div>
             <span className="text-xs text-gray-400">{reviews.length} reviews</span>
             {recommendedPct !== null && (
-              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                {recommendedPct}% lo recomiendan
-              </span>
+              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">{recommendedPct}% lo recomiendan</span>
             )}
           </div>
         )}
@@ -244,11 +293,42 @@ function PostDetail() {
                 <button onClick={() => navigate(`/user/${comment.user_id}`)}>
                   <Avatar url={comment.profiles?.avatar_url} username={comment.profiles?.username} size="sm" />
                 </button>
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-gray-900">{comment.profiles?.username} </span>
-                  <span className="text-sm text-gray-600">{comment.content}</span>
-                  <p className="text-xs text-gray-400 mt-0.5">{new Date(comment.created_at).toLocaleDateString('es-AR')}</p>
+                <div className="flex-1 min-w-0">
+                  {editingCommentId === comment.id ? (
+                    <div className="flex flex-col gap-1">
+                      <input
+                        value={editCommentText}
+                        onChange={e => setEditCommentText(e.target.value)}
+                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-green-400"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEditComment(comment.id)} className="text-xs text-green-500 font-medium">Guardar</button>
+                        <button onClick={() => { setEditingCommentId(null); setEditCommentText('') }} className="text-xs text-gray-400">Cancelar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">{comment.profiles?.username} </span>
+                      <span className="text-sm text-gray-600">{comment.content}</span>
+                      <p className="text-xs text-gray-400 mt-0.5">{new Date(comment.created_at).toLocaleDateString('es-AR')}</p>
+                    </div>
+                  )}
                 </div>
+                {comment.user_id === currentUserId && editingCommentId !== comment.id && (
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <button onClick={() => { setEditingCommentId(comment.id); setEditCommentText(comment.content) }} className="text-gray-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button onClick={() => handleDeleteComment(comment.id)} className="text-red-300">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             <div ref={commentsEndRef} />
@@ -273,10 +353,41 @@ function PostDetail() {
                       ))}
                     </div>
                     <span className="text-xs text-gray-400 ml-auto">{new Date(review.created_at).toLocaleDateString('es-AR')}</span>
+                    {review.user_id === currentUserId && editingReviewId !== review.id && (
+                      <div className="flex gap-1.5">
+                        <button onClick={() => { setEditingReviewId(review.id); setEditReviewContent(review.content ?? '') }} className="text-gray-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button onClick={() => handleDeleteReview(review.id)} className="text-red-300">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {review.content && <p className="text-sm text-gray-600 pl-9">{review.content}</p>}
-                  {review.recommended !== null && (
-                    <p className="text-xs pl-9">{review.recommended ? '👍 Lo recomienda' : '👎 No lo recomienda'}</p>
+                  {editingReviewId === review.id ? (
+                    <div className="pl-9 flex flex-col gap-1">
+                      <textarea
+                        value={editReviewContent}
+                        onChange={e => setEditReviewContent(e.target.value)}
+                        rows={2}
+                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-green-400 resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEditReview(review.id)} className="text-xs text-green-500 font-medium">Guardar</button>
+                        <button onClick={() => { setEditingReviewId(null); setEditReviewContent('') }} className="text-xs text-gray-400">Cancelar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {review.content && <p className="text-sm text-gray-600 pl-9">{review.content}</p>}
+                      {review.recommended !== null && (
+                        <p className="text-xs pl-9">{review.recommended ? '👍 Lo recomienda' : '👎 No lo recomienda'}</p>
+                      )}
+                    </>
                   )}
                 </div>
               ))}
@@ -286,7 +397,7 @@ function PostDetail() {
       </div>
 
       {/* Input comentario */}
-      <div className="border-t border-gray-100 px-4 py-3 flex items-center gap-3 bg-white">
+      <div className="border-t border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center gap-3 bg-white dark:bg-gray-900">
         <input
           value={newComment}
           onChange={e => setNewComment(e.target.value)}
