@@ -1,264 +1,72 @@
-import { useState, useEffect, useRef } from 'react'
+import Stories from 'react-insta-stories'
 import { useNavigate } from 'react-router-dom'
 
-const STYLE = document.createElement('style')
-STYLE.textContent = `@keyframes story-fade-out{from{opacity:1}to{opacity:0}}@keyframes story-fade-in{from{opacity:0}to{opacity:1}}`
-document.head.appendChild(STYLE)
-
-function StoryViewer({ groups, groupIndex, storyGroupUserId, onClose, onGroupChange }) {
+function StoryViewer({ storyGroups, activeGroupIndex, onClose, onNextGroup, onPrevGroup }) {
   const navigate = useNavigate()
-  const stories = groups[groupIndex].stories
-  const [current, setCurrent] = useState(0)
-  const [progress, setProgress] = useState(0)
-  const [paused, setPaused] = useState(false)
-  const fadingOut = useRef(null)
-  const containerRef = useRef(null)
+  const group = storyGroups[activeGroupIndex]
 
-  const timerRef = useRef(null)
-  const touchStartTime = useRef(0)
-  const currentRef = useRef(current)
-  const isNavigatingBack = useRef(false)
-  currentRef.current = current
-
-  const goNext = () => {
-    if (current < stories.length - 1) {
-      fadingOut.current = stories[current]
-      setCurrent(c => c + 1)
-      setTimeout(() => { fadingOut.current = null }, 250)
-    } else if (groupIndex < groups.length - 1) {
-      onGroupChange(groupIndex + 1)
-    } else {
-      onClose()
-    }
-  }
-
-  const goPrev = () => {
-    if (current > 0) {
-      fadingOut.current = stories[current]
-      setCurrent(c => c - 1)
-      setTimeout(() => { fadingOut.current = null }, 250)
-    } else if (groupIndex > 0) {
-      isNavigatingBack.current = true
-      onGroupChange(groupIndex - 1)
-    }
-  }
-
-  useEffect(() => {
-    setCurrent(0)
-    setProgress(0)
-    fadingOut.current = null
-  }, [storyGroupUserId])
-
-  useEffect(() => {
-    if (isNavigatingBack.current) {
-      isNavigatingBack.current = false
-      setCurrent(stories.length - 1)
-    }
-  })
-
-  useEffect(() => {
-    setProgress(0)
-  }, [current])
-
-  useEffect(() => {
-    if (paused) return
-
-    timerRef.current = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          if (currentRef.current < stories.length - 1) {
-            setCurrent(c => c + 1)
-          } else if (groupIndex < groups.length - 1) {
-            onGroupChange(groupIndex + 1)
-          } else {
-            onClose()
-          }
-          return 0
-        }
-        return prev + 1
-      })
-    }, 50)
-
-    return () => clearInterval(timerRef.current)
-  }, [paused, current, groupIndex])
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-
-    const onTouchStart = (e) => {
-      e.preventDefault()
-      touchStartTime.current = Date.now()
-      setPaused(true)
-    }
-
-    const onTouchEnd = (e) => {
-      e.preventDefault()
-      const duration = Date.now() - touchStartTime.current
-      setPaused(false)
-      if (duration >= 200) return
-      const x = e.changedTouches[0].clientX
-      const zone = x / window.innerWidth
-      if (zone < 0.3) {
-        if (currentRef.current > 0) {
-          fadingOut.current = stories[currentRef.current]
-          setCurrent(c => c - 1)
-          setTimeout(() => { fadingOut.current = null }, 250)
-        } else if (groupIndex > 0) {
-          isNavigatingBack.current = true
-          onGroupChange(groupIndex - 1)
-        }
-      } else if (zone > 0.7) {
-        if (currentRef.current < stories.length - 1) {
-          fadingOut.current = stories[currentRef.current]
-          setCurrent(c => c + 1)
-          setTimeout(() => { fadingOut.current = null }, 250)
-        } else if (groupIndex < groups.length - 1) {
-          onGroupChange(groupIndex + 1)
-        } else {
-          onClose()
-        }
-      }
-    }
-
-    el.addEventListener('touchstart', onTouchStart, { passive: false })
-    el.addEventListener('touchend', onTouchEnd, { passive: false })
-
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchend', onTouchEnd)
-    }
-  }, [stories, groupIndex])
-
-  const handleMouseDown = () => {
-    touchStartTime.current = Date.now()
-    setPaused(true)
-  }
-
-  const handleMouseUp = (e) => {
-    const duration = Date.now() - touchStartTime.current
-    setPaused(false)
-
-    if (duration >= 200) return
-
-    const x = e.clientX
-    const screenWidth = window.innerWidth
-    const zone = x / screenWidth
-
-    if (zone < 0.3) {
-      goPrev()
-    } else if (zone > 0.7) {
-      goNext()
-    }
-  }
-
-  const story = stories[current]
-  if (!story) return null
-
-  const renderContent = (s) => {
-    if (s.image_url) {
-      return (
-        <img
-          src={s.image_url}
-          className="w-full h-full object-contain pointer-events-none"
-          draggable={false}
-          style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
-        />
-      )
-    }
-    return <span className="text-8xl pointer-events-none select-none">{s.emoji ?? '🛍️'}</span>
-  }
+  const stories = group.stories.map(s => ({
+    url: s.image_url || null,
+    type: s.image_url ? 'image' : 'video',
+    duration: 5000,
+    header: {
+      heading: group.username,
+      subheading: s.product,
+    },
+    seeMore: () => {},
+    content: !s.image_url ? () => (
+      <div className="w-full h-full flex items-center justify-center bg-gray-900">
+        <span className="text-8xl">{s.emoji ?? '🛍️'}</span>
+      </div>
+    ) : undefined,
+  }))
 
   return (
-    <div
-      className="fixed inset-0 bg-black z-50 flex items-center justify-center select-none touch-none"
-      onContextMenu={(e) => e.preventDefault()}
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-      onMouseUp={(e) => e.stopPropagation()}
-    >
-      <div
-        ref={containerRef}
-        className="relative w-full max-w-md h-full flex flex-col overflow-hidden"
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-      >
-        {/* Progress bars */}
-        <div className="absolute top-3 left-3 right-3 flex gap-1 z-20 pointer-events-none">
-          {stories.map((_, i) => (
-            <div key={i} className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white"
-                style={{
-                  width: i < current ? '100%' : i === current ? `${progress}%` : '0%',
-                  transition: 'none',
-                }}
-              />
-            </div>
-          ))}
-        </div>
+    <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
+      <div className="relative w-full max-w-md h-full">
 
-        {/* Header */}
-        <div
-          className={`absolute top-7 left-3 right-3 flex items-center justify-between z-20 pointer-events-none transition-opacity duration-200 ${paused ? 'opacity-50' : 'opacity-100'}`}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            navigate(`/user/${group.userId}`)
+          }}
+          className="absolute top-7 left-3 z-30 flex items-center gap-2"
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              navigate(`/user/${story.user_id}`)
-            }}
-            onTouchEnd={(e) => e.stopPropagation()}
-            onMouseUp={(e) => e.stopPropagation()}
-            className="flex items-center gap-2 pointer-events-auto"
-          >
-            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-medium overflow-hidden shrink-0">
-              {story.profiles?.avatar_url ? (
-                <img src={story.profiles.avatar_url} className="w-full h-full object-cover" draggable={false} />
-              ) : (
-                story.profiles?.username?.slice(0, 2).toUpperCase()
-              )}
-            </div>
-            <span className="text-white text-sm font-medium drop-shadow-sm">{story.profiles?.username}</span>
-          </button>
-          <button onClick={onClose} className="text-white pointer-events-auto p-1">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Story content */}
-        <div className="flex-1 relative bg-gray-900">
-          <div
-            key={current}
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            style={{ animation: 'story-fade-in 0.2s ease-in-out' }}
-          >
-            {renderContent(story)}
+          <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-medium">
+            {group.username?.slice(0, 2).toUpperCase()}
           </div>
+          <span className="text-white text-sm font-medium drop-shadow">{group.username}</span>
+        </button>
 
-          {fadingOut.current && (
-            <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-              style={{ animation: 'story-fade-out 0.2s ease-in-out forwards' }}
-            >
-              {renderContent(fadingOut.current)}
-            </div>
-          )}
-
-          <div
-            className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-200 ${paused ? 'opacity-20' : 'opacity-0'}`}
-          />
-        </div>
-
-        {/* Bottom info */}
-        <div
-          className={`absolute bottom-6 left-3 right-3 text-white pointer-events-none transition-opacity duration-200 ${paused ? 'opacity-50' : 'opacity-100'}`}
+        <button
+          onClick={onClose}
+          className="absolute top-7 right-3 z-30 text-white p-1"
         >
-          <p className="text-sm font-medium drop-shadow-sm">{story.product}</p>
-          {story.caption && <p className="text-xs text-white/80 mt-1 drop-shadow-sm">{story.caption}</p>}
-          {story.price && <p className="text-green-300 text-xs mt-1 drop-shadow-sm">${story.price}</p>}
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <Stories
+          key={group.userId}
+          stories={stories}
+          defaultInterval={5000}
+          width="100%"
+          height="100%"
+          onAllStoriesEnd={onNextGroup}
+          keyboardNavigation
+          storyContainerStyles={{ backgroundColor: '#000' }}
+        />
+
+        <div className="absolute bottom-6 left-3 right-3 text-white pointer-events-none z-20">
+          {group.stories[0]?.caption && (
+            <p className="text-xs text-white/80 drop-shadow">{group.stories[0].caption}</p>
+          )}
+          {group.stories[0]?.price && (
+            <p className="text-green-300 text-xs mt-1 drop-shadow">${group.stories[0].price}</p>
+          )}
         </div>
+
       </div>
     </div>
   )
