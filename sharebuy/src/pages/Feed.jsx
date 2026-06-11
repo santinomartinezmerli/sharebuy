@@ -55,11 +55,11 @@ function PostCard({ post, currentUserId }) {
   const handleSave = async (e) => {
     e.stopPropagation()
     if (saved) {
-      await supabase.from('saves').delete().eq('post_id', post.id).eq('user_id', currentUserId)
-      setSaved(false)
+      const { error } = await supabase.from('saves').delete().eq('post_id', post.id).eq('user_id', currentUserId)
+      if (!error) setSaved(false)
     } else {
-      await supabase.from('saves').insert({ post_id: post.id, user_id: currentUserId })
-      setSaved(true)
+      const { error } = await supabase.from('saves').insert({ post_id: post.id, user_id: currentUserId })
+      if (!error) setSaved(true)
     }
   }
 

@@ -121,11 +121,11 @@ function PostDetail() {
 
   const handleSave = async () => {
     if (saved) {
-      await supabase.from('saves').delete().eq('post_id', postId).eq('user_id', currentUserId)
-      setSaved(false)
+      const { error } = await supabase.from('saves').delete().eq('post_id', postId).eq('user_id', currentUserId)
+      if (!error) setSaved(false)
     } else {
-      await supabase.from('saves').insert({ post_id: postId, user_id: currentUserId })
-      setSaved(true)
+      const { error } = await supabase.from('saves').insert({ post_id: postId, user_id: currentUserId })
+      if (!error) setSaved(true)
     }
   }
 
