@@ -74,13 +74,13 @@ function PostCard({ post, currentUserId }) {
     : (post.image_url ? [post.image_url] : [])
 
   return (
-    <div className="bg-white border-b border-gray-100">
+    <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
       <div className="flex items-center gap-3 px-4 py-3">
         <button onClick={() => navigate(`/user/${post.user_id}`)}>
           <Avatar url={post.profiles?.avatar_url} username={post.profiles?.username} size="md" />
         </button>
         <div className="flex-1">
-          <button onClick={() => navigate(`/user/${post.user_id}`)} className="text-sm font-medium text-gray-900">
+          <button onClick={() => navigate(`/user/${post.user_id}`)} className="text-sm font-medium text-gray-900 dark:text-white">
             {post.profiles?.username ?? 'usuario'}
           </button>
           <p className="text-xs text-gray-400">{new Date(post.created_at).toLocaleDateString('es-AR')}</p>
@@ -123,8 +123,8 @@ function PostCard({ post, currentUserId }) {
             </svg>
           </button>
         </div>
-        <p className="text-sm text-gray-500">
-          <button onClick={() => navigate(`/user/${post.user_id}`)} className="font-medium text-gray-900">
+        <p className="text-sm text-gray-500 dark:text-gray-300">
+          <button onClick={() => navigate(`/user/${post.user_id}`)} className="font-medium text-gray-900 dark:text-white">
             {post.profiles?.username ?? 'usuario'}
           </button>
           {' '}{post.product}
@@ -146,21 +146,21 @@ function PostCard({ post, currentUserId }) {
 
 function PostSkeleton() {
   return (
-    <div className="bg-white border-b border-gray-100 animate-pulse">
+    <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 animate-pulse">
       <div className="flex items-center gap-3 px-4 py-3">
-        <div className="w-9 h-9 rounded-full bg-gray-200" />
+        <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700" />
         <div className="flex-1 space-y-1.5">
-          <div className="h-3 bg-gray-200 rounded w-24" />
-          <div className="h-2.5 bg-gray-100 rounded w-16" />
+          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24" />
+          <div className="h-2.5 bg-gray-100 dark:bg-gray-700 rounded w-16" />
         </div>
       </div>
-      <div className="aspect-square bg-gray-100" />
+      <div className="aspect-square bg-gray-100 dark:bg-gray-700" />
       <div className="px-4 py-3 space-y-2">
         <div className="flex gap-4">
-          <div className="w-6 h-6 rounded bg-gray-200" />
-          <div className="w-6 h-6 rounded bg-gray-200" />
+          <div className="w-6 h-6 rounded bg-gray-200 dark:bg-gray-700" />
+          <div className="w-6 h-6 rounded bg-gray-200 dark:bg-gray-700" />
         </div>
-        <div className="h-3 bg-gray-200 rounded w-3/4" />
+        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
       </div>
     </div>
   )

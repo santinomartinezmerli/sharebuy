@@ -98,7 +98,7 @@ function Profile() {
           </div>
         </div>
         <p className="text-sm font-medium text-gray-900 dark:text-white">{profile?.username}</p>
-        {profile?.bio && <p className="text-sm text-gray-500 mt-1">{profile.bio}</p>}
+        {profile?.bio && <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">{profile.bio}</p>}
         <button onClick={() => supabase.auth.signOut()} className="mt-3 text-xs text-red-400">Cerrar sesión</button>
       </div>
 

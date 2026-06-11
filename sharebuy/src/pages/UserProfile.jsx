@@ -117,18 +117,18 @@ function UserProfile() {
   )
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+    <div className="flex flex-col dark:bg-gray-900 dark:text-white">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <button onClick={() => navigate(-1)} className="text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <span className="text-sm font-medium text-gray-900">{profile?.username}</span>
+        <span className="text-sm font-medium text-gray-900 dark:text-white">{profile?.username}</span>
         <div className="w-6" />
       </div>
 
-      <div className="px-4 py-4 border-b border-gray-100">
+      <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-4 mb-3">
           <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xl font-medium overflow-hidden flex-shrink-0">
             {profile?.avatar_url
@@ -137,27 +137,27 @@ function UserProfile() {
           </div>
           <div className="flex gap-6 flex-1 justify-center">
             <div className="flex flex-col items-center">
-              <span className="text-base font-semibold text-gray-900">{posts.length}</span>
+              <span className="text-base font-semibold text-gray-900 dark:text-white">{posts.length}</span>
               <span className="text-xs text-gray-400">compras</span>
             </div>
             <button
               onClick={() => navigate(`/user/${userId}/follow?type=followers`)}
               className="flex flex-col items-center"
             >
-              <span className="text-base font-semibold text-gray-900">{followersCount}</span>
+              <span className="text-base font-semibold text-gray-900 dark:text-white">{followersCount}</span>
               <span className="text-xs text-gray-400">seguidores</span>
             </button>
             <button
               onClick={() => navigate(`/user/${userId}/follow?type=following`)}
               className="flex flex-col items-center"
             >
-              <span className="text-base font-semibold text-gray-900">{followingCount}</span>
+              <span className="text-base font-semibold text-gray-900 dark:text-white">{followingCount}</span>
               <span className="text-xs text-gray-400">siguiendo</span>
             </button>
           </div>
         </div>
-        <p className="text-sm font-medium text-gray-900">{profile?.username}</p>
-        {profile?.bio && <p className="text-sm text-gray-500 mt-1">{profile.bio}</p>}
+        <p className="text-sm font-medium text-gray-900 dark:text-white">{profile?.username}</p>
+        {profile?.bio && <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">{profile.bio}</p>}
 
         {currentUserId !== userId && (
           <div className="flex flex-col gap-2 mt-3">
@@ -175,7 +175,7 @@ function UserProfile() {
               </button>
               <button
                 onClick={handleMessage}
-                className="flex-1 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-700"
+                className="flex-1 py-2 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200"
               >
                 Mensaje
               </button>
@@ -200,7 +200,7 @@ function UserProfile() {
             <button
               key={post.id}
               onClick={() => navigate(`/post/${post.id}`)}
-              className="aspect-square bg-gray-50 overflow-hidden"
+              className="aspect-square bg-gray-50 dark:bg-gray-800 overflow-hidden"
             >
               {post.image_url ? (
                 <img src={post.image_url} className="w-full h-full object-cover" />
