@@ -143,7 +143,7 @@ function Notifications() {
   return (
     <div className="flex flex-col dark:bg-gray-900 dark:text-white">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-        <h1 className="text-base font-semibold text-gray-900">Notificaciones</h1>
+        <h1 className="text-base font-semibold text-gray-900 dark:text-white">Notificaciones</h1>
       </div>
 
       {notifications.length === 0 ? (
@@ -169,7 +169,7 @@ function Notifications() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900"><span className="font-medium">{notif.username}</span> empezó a seguirte</p>
+                    <p className="text-sm text-gray-900 dark:text-gray-100"><span className="font-medium">{notif.username}</span> empezó a seguirte</p>
                   </div>
                   <span className="text-xs text-gray-400 flex-shrink-0">{timeAgo(notif.created_at)}</span>
                 </button>
@@ -185,9 +185,9 @@ function Notifications() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-gray-900 dark:text-gray-100">
                       <span className="font-medium">{notif.username}</span> le dio like a tu publicación
-                      {notif.product && <span className="text-gray-500"> · {notif.product}</span>}
+                      {notif.product && <span className="text-gray-500 dark:text-gray-400"> · {notif.product}</span>}
                     </p>
                   </div>
                   <span className="text-xs text-gray-400 flex-shrink-0">{timeAgo(notif.created_at)}</span>
@@ -204,11 +204,11 @@ function Notifications() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-gray-900 dark:text-gray-100">
                       <span className="font-medium">{notif.username}</span> comentó tu publicación
-                      {notif.product && <span className="text-gray-500"> · {notif.product}</span>}
+                      {notif.product && <span className="text-gray-500 dark:text-gray-400"> · {notif.product}</span>}
                     </p>
-                    {notif.preview && <p className="text-xs text-gray-400 truncate mt-0.5">{notif.preview}</p>}
+                    {notif.preview && <p className="text-xs text-gray-400 dark:text-gray-300 truncate mt-0.5">{notif.preview}</p>}
                   </div>
                   <span className="text-xs text-gray-400 flex-shrink-0">{timeAgo(notif.created_at)}</span>
                 </button>
@@ -223,12 +223,12 @@ function Notifications() {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-gray-900 dark:text-gray-100">
                       <span className="font-medium">Ya pasaron {notif.days} días</span> desde que compraste{' '}
                       <span className="font-medium">{notif.product}</span>. ¿Qué te pareció?
                     </p>
                     <button onClick={() => navigate(`/review/${notif.post_id}`)}
-                      className="mt-2 text-xs font-medium text-purple-500 border border-purple-200 rounded-full px-3 py-1">
+                      className="mt-2 text-xs font-medium text-purple-500 border border-purple-200 dark:border-purple-700 rounded-full px-3 py-1">
                       Escribir review
                     </button>
                   </div>
