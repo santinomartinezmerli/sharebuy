@@ -134,18 +134,24 @@ function Chat() {
       .upload(filename, file)
 
     if (uploadError) {
-      setUploadError(`Error al subir foto: ${uploadError.message}`)
+      setUploadError(uploadError.message)
       setUploading(false)
       return
     }
 
     const { data: urlData } = supabase.storage.from('chat').getPublicUrl(filename)
-    await supabase.from('messages').insert({
+
+    const { error: insertError } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: currentUserId,
       content: urlData.publicUrl,
-      is_image: true,
     })
+
+    if (insertError) {
+      setUploadError(insertError.message)
+      setUploading(false)
+      return
+    }
 
     setUploading(false)
     e.target.value = ''
@@ -175,9 +181,10 @@ function Chat() {
         )}
         {messages.map(msg => {
           const isMine = msg.sender_id === currentUserId
+          const isImage = msg.is_image || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(msg.content)
           return (
             <div key={msg.id} className={`max-w-[75%] flex flex-col ${isMine ? 'self-end items-end' : 'self-start items-start'}`}>
-              {msg.is_image ? (
+              {isImage ? (
                 <img src={msg.content} className="w-48 h-48 object-cover rounded-2xl" alt="" />
               ) : (
                 <div className={`px-3 py-2 rounded-2xl text-sm ${
