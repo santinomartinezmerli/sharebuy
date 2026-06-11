@@ -150,6 +150,12 @@ function StoryViewer({ groups, groupIndex, storyGroupUserId, onClose, onGroupCha
     <div
       className="fixed inset-0 bg-black z-50 flex items-center justify-center select-none"
       onContextMenu={(e) => e.preventDefault()}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
     >
       <div
         className="relative w-full max-w-md h-full flex flex-col overflow-hidden"
