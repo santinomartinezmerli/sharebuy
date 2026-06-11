@@ -63,7 +63,7 @@ function Layout({ children }) {
 
   return (
     <div className="flex flex-col h-dvh max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden">
-      <main className="flex-1 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] relative">
+      <main className={`flex-1 ${location.pathname.startsWith('/messages/') ? 'overflow-hidden' : 'overflow-y-auto'} overscroll-contain pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] relative`}>
         <PullIndicator pulling={pulling} pullDistance={pullDistance} threshold={THRESHOLD} />
         {children}
       </main>

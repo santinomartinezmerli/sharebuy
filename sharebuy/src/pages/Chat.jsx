@@ -22,7 +22,7 @@ function Chat() {
   const [readMap, setReadMap] = useState({})
   const fileInputRef = useRef(null)
   const typingTimeoutRef = useRef(null)
-  const endRef = useRef(null)
+  const messagesRef = useRef(null)
 
   // Mark conversation as read immediately on mount (not just after async fetch)
   useEffect(() => {
@@ -106,8 +106,8 @@ function Chat() {
   }, [conversationId, currentUserId])
 
   useLayoutEffect(() => {
-    if (messages.length === 0) return
-    endRef.current?.scrollIntoView({ block: 'end' })
+    if (messages.length === 0 || !messagesRef.current) return
+    messagesRef.current.scrollTop = messagesRef.current.scrollHeight
   }, [messages, otherTyping])
 
   const handleSend = async () => {
@@ -230,7 +230,7 @@ function Chat() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
+      <div ref={messagesRef} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
         {messages.length === 0 && (
           <p className="text-center text-xs text-gray-400 mt-4">
             Es el comienzo de tu conversación con {otherUser?.username}
@@ -299,7 +299,6 @@ function Chat() {
             {otherUser?.username} está escribiendo...
           </div>
         )}
-        <div ref={endRef} />
       </div>
 
       {uploadError && (
