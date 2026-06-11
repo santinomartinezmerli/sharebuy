@@ -427,6 +427,7 @@ function Feed() {
         <StoryViewer
           groups={storyGroups}
           groupIndex={activeStoryGroup}
+          storyGroupUserId={storyGroups[activeStoryGroup].userId}
           onClose={() => setActiveStoryGroup(null)}
           onGroupChange={(i) => setActiveStoryGroup(i)}
         />

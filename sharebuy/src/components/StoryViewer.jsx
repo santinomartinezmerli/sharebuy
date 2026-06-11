@@ -4,7 +4,7 @@ const STYLE = document.createElement('style')
 STYLE.textContent = `@keyframes story-fade-out{from{opacity:1}to{opacity:0}}@keyframes story-fade-in{from{opacity:0}to{opacity:1}}`
 document.head.appendChild(STYLE)
 
-function StoryViewer({ groups, groupIndex, onClose, onGroupChange }) {
+function StoryViewer({ groups, groupIndex, storyGroupUserId, onClose, onGroupChange }) {
   const stories = groups[groupIndex].stories
   const [current, setCurrent] = useState(0)
   const [progress, setProgress] = useState(0)
@@ -44,7 +44,7 @@ function StoryViewer({ groups, groupIndex, onClose, onGroupChange }) {
     setCurrent(0)
     setProgress(0)
     fadingOut.current = null
-  }, [groupIndex])
+  }, [storyGroupUserId])
 
   useEffect(() => {
     if (isNavigatingBack.current) {
