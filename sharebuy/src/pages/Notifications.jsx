@@ -187,7 +187,7 @@ function Notifications() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-900 dark:text-gray-100">
-                      <span className="font-medium">{notif.username}</span> le dio like a tu publicación
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/user/${notif.user_id}`) }} className="font-medium hover:underline inline">{notif.username}</button> le dio like a tu publicación
                       {notif.product && <span className="text-gray-500 dark:text-gray-400"> · {notif.product}</span>}
                     </p>
                   </div>
@@ -206,7 +206,7 @@ function Notifications() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-900 dark:text-gray-100">
-                      <span className="font-medium">{notif.username}</span> comentó tu publicación
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/user/${notif.user_id}`) }} className="font-medium hover:underline inline">{notif.username}</button> comentó tu publicación
                       {notif.product && <span className="text-gray-500 dark:text-gray-400"> · {notif.product}</span>}
                     </p>
                     {notif.preview && <p className="text-xs text-gray-400 dark:text-gray-300 truncate mt-0.5">{notif.preview}</p>}
