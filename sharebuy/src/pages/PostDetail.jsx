@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ImageCarousel from '../components/ImageCarousel'
 import Avatar from '../components/Avatar'
@@ -9,8 +9,9 @@ function PostDetail() {
   const { postId } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const commentInputRef = useRef(null)
-  const [post, setPost] = useState(null)
+  const [post, setPost] = useState(location.state?.post ?? null)
   const [reviews, setReviews] = useState([])
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
@@ -32,11 +33,14 @@ function PostDetail() {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUserId(user.id)
 
-      const { data: postData } = await supabase
-        .from('posts')
-        .select('*, profiles(username, avatar_url)')
-        .eq('id', postId)
-        .single()
+      if (!post) {
+        const { data: postData } = await supabase
+          .from('posts')
+          .select('*, profiles(username, avatar_url)')
+          .eq('id', postId)
+          .single()
+        setPost(postData)
+      }
 
       const { data: reviewsData } = await supabase
         .from('reviews')
@@ -57,7 +61,6 @@ function PostDetail() {
         .eq('user_id', user.id)
         .maybeSingle()
 
-      setPost(postData)
       setReviews(reviewsData ?? [])
       setComments(commentsData ?? [])
       setSaved(!!savedData)

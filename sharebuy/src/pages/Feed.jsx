@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import StoryViewer from '../components/StoryViewer'
 import ImageCarousel from '../components/ImageCarousel'
@@ -92,11 +93,11 @@ function PostCard({ post, currentUserId, onCommentClick }) {
       {/* Image */}
       <div className="px-2">
         {imageUrls.length > 1 ? (
-          <button onClick={() => navigate(`/post/${post.id}`)} className="w-full block">
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate(`/post/${post.id}`, { state: { post } })} className="w-full block">
             <ImageCarousel images={imageUrls} brand={post.brand} className="rounded-xl" />
-          </button>
+          </motion.button>
         ) : imageUrls.length === 1 ? (
-          <button onClick={() => navigate(`/post/${post.id}`)} className="w-full block">
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate(`/post/${post.id}`, { state: { post } })} className="w-full block">
             <div className="relative aspect-square bg-gray-50 dark:bg-gray-700 rounded-xl overflow-hidden">
               <img src={imageUrls[0]} className="w-full h-full object-cover" alt="" />
               {post.brand && (
@@ -105,9 +106,9 @@ function PostCard({ post, currentUserId, onCommentClick }) {
                 </span>
               )}
             </div>
-          </button>
+          </motion.button>
         ) : (
-          <button onClick={() => navigate(`/post/${post.id}`)} className="w-full">
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate(`/post/${post.id}`, { state: { post } })} className="w-full">
             <div className="aspect-square bg-gray-50 dark:bg-gray-700 rounded-xl flex items-center justify-center relative overflow-hidden">
               <span className="text-6xl">{post.emoji ?? '🛍️'}</span>
               {post.brand && (
@@ -116,7 +117,7 @@ function PostCard({ post, currentUserId, onCommentClick }) {
                 </span>
               )}
             </div>
-          </button>
+          </motion.button>
         )}
       </div>
 
