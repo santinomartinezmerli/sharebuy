@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { DarkModeProvider } from './lib/DarkModeContext'
-import Login from './pages/Login'
+import Landing from './pages/Landing'
+import SetupProfile from './pages/SetupProfile'
 import Feed from './pages/Feed'
 import Explore from './pages/Explore'
 import NewPost from './pages/NewPost'
@@ -21,8 +22,9 @@ import EditPost from './pages/EditPost'
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [needsSetup, setNeedsSetup] = useState(false)
 
-const createProfileIfNotExists = async (user) => {
+  const checkProfile = async (user) => {
     const { data } = await supabase
       .from('profiles')
       .select('id')
@@ -30,24 +32,33 @@ const createProfileIfNotExists = async (user) => {
       .single()
 
     if (!data) {
-      const username = user.email.split('@')[0]
+      const username = user.email?.split('@')[0] ?? 'usuario'
       await supabase.from('profiles').insert({
         id: user.id,
         username: username,
+        setup_complete: false
       })
+      setNeedsSetup(true)
+    } else {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('setup_complete')
+        .eq('id', user.id)
+        .single()
+      setNeedsSetup(!profile?.setup_complete)
     }
   }
 
-useEffect(() => {
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setLoading(false)
-      if (session) createProfileIfNotExists(session.user)
+      if (session) checkProfile(session.user)
     })
 
     supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      if (session) createProfileIfNotExists(session.user)
+      if (session) checkProfile(session.user)
     })
   }, [])
 
@@ -57,29 +68,35 @@ useEffect(() => {
     </div>
   )
 
-  if (!session) return <Login />
+  if (!session) return <Landing />
 
   return (
     <BrowserRouter>
       <DarkModeProvider>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/feed" />} />
-          <Route path="/feed" element={<Feed />} />
-          <Route path="/explore" element={<Explore />} />
-          <Route path="/new" element={<NewPost />} />
-          <Route path="/post/:postId" element={<PostDetail />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/review/:postId" element={<Review />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/edit-profile" element={<EditProfile />} />
-          <Route path="/user/:userId" element={<UserProfile />} />
-          <Route path="/messages" element={<Messages />} />
-          <Route path="/messages/:conversationId" element={<Chat />} />
-          <Route path="/user/:userId/follow" element={<FollowList />} />
-          <Route path="/edit-post/:postId" element={<EditPost />} />
-        </Routes>
-      </Layout>
+        {needsSetup ? (
+          <Routes>
+            <Route path="*" element={<SetupProfile />} />
+          </Routes>
+        ) : (
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Navigate to="/feed" />} />
+              <Route path="/feed" element={<Feed />} />
+              <Route path="/explore" element={<Explore />} />
+              <Route path="/new" element={<NewPost />} />
+              <Route path="/post/:postId" element={<PostDetail />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/review/:postId" element={<Review />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/edit-profile" element={<EditProfile />} />
+              <Route path="/user/:userId" element={<UserProfile />} />
+              <Route path="/messages" element={<Messages />} />
+              <Route path="/messages/:conversationId" element={<Chat />} />
+              <Route path="/user/:userId/follow" element={<FollowList />} />
+              <Route path="/edit-post/:postId" element={<EditPost />} />
+            </Routes>
+          </Layout>
+        )}
       </DarkModeProvider>
     </BrowserRouter>
   )

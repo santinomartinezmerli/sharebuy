@@ -9,6 +9,8 @@ function PostCard({ post, currentUserId }) {
   const [liked, setLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
   const [saved, setSaved] = useState(false)
+  const [liking, setLiking] = useState(false)
+  const [saving, setSaving] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -40,6 +42,7 @@ function PostCard({ post, currentUserId }) {
   }, [post.id, currentUserId])
 
   const handleLike = async () => {
+    setLiking(true)
     if (liked) {
       await supabase.from('likes').delete()
         .eq('post_id', post.id).eq('user_id', currentUserId)
@@ -50,10 +53,12 @@ function PostCard({ post, currentUserId }) {
       setLiked(true)
       setLikesCount(prev => prev + 1)
     }
+    setLiking(false)
   }
 
   const handleSave = async (e) => {
     e.stopPropagation()
+    setSaving(true)
     if (saved) {
       const { error } = await supabase.from('saves').delete().eq('post_id', post.id).eq('user_id', currentUserId)
       if (!error) setSaved(false)
@@ -61,6 +66,7 @@ function PostCard({ post, currentUserId }) {
       const { error } = await supabase.from('saves').insert({ post_id: post.id, user_id: currentUserId })
       if (!error) setSaved(true)
     }
+    setSaving(false)
   }
 
   const imageUrls = (post.image_urls && post.image_urls.length > 0)
@@ -100,7 +106,7 @@ function PostCard({ post, currentUserId }) {
 
       <div className="px-4 py-3 flex flex-col gap-1">
         <div className="flex items-center gap-4">
-          <button onClick={handleLike} className="flex items-center gap-1">
+          <button onClick={handleLike} disabled={liking} className="flex items-center gap-1 disabled:opacity-50">
             <svg xmlns="http://www.w3.org/2000/svg" className={`w-6 h-6 transition-colors ${liked ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
@@ -111,7 +117,7 @@ function PostCard({ post, currentUserId }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </button>
-          <button onClick={handleSave}>
+          <button onClick={handleSave} disabled={saving} className="disabled:opacity-50">
             <svg xmlns="http://www.w3.org/2000/svg" className={`w-6 h-6 ${saved ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
@@ -183,10 +189,13 @@ function Feed() {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUserId(user.id)
 
-      const { data: followsData } = await supabase
-        .from('follows').select('following_id').eq('follower_id', user.id)
+      const [followsData, blockedData] = await Promise.all([
+        supabase.from('follows').select('following_id').eq('follower_id', user.id),
+        supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+      ])
 
-      const followingIds = followsData?.map(f => f.following_id) ?? []
+      const blockedIds = new Set(blockedData.data?.map(b => b.blocked_id) ?? [])
+      const followingIds = (followsData.data?.map(f => f.following_id) ?? []).filter(id => !blockedIds.has(id))
       const ids = [user.id, ...followingIds]
 
       const { data, error } = await supabase
@@ -227,9 +236,12 @@ function Feed() {
     setLoadingMore(true)
 
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: followsData } = await supabase
-      .from('follows').select('following_id').eq('follower_id', user.id)
-    const followingIds = followsData?.map(f => f.following_id) ?? []
+    const [followsData, blockedData] = await Promise.all([
+      supabase.from('follows').select('following_id').eq('follower_id', user.id),
+      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+    ])
+    const blockedIds = new Set(blockedData.data?.map(b => b.blocked_id) ?? [])
+    const followingIds = (followsData.data?.map(f => f.following_id) ?? []).filter(id => !blockedIds.has(id))
     const ids = [user.id, ...followingIds]
 
     const from = page * PAGE_SIZE

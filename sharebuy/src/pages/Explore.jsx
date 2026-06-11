@@ -21,19 +21,15 @@ function Explore() {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUserId(user.id)
 
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*, profiles(id, username, avatar_url)')
-        .order('created_at', { ascending: false })
+      const [postsResult, likesResult, blockedResult] = await Promise.all([
+        supabase.from('posts').select('*, profiles(id, username, avatar_url)').order('created_at', { ascending: false }),
+        supabase.from('likes').select('post_id').eq('user_id', user.id),
+        supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+      ])
 
-      if (!error) setPosts(data)
-
-      const { data: likesData } = await supabase
-        .from('likes')
-        .select('post_id')
-        .eq('user_id', user.id)
-
-      setLikedIds(new Set(likesData?.map(l => l.post_id) ?? []))
+      const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
+      if (!postsResult.error) setPosts((postsResult.data ?? []).filter(p => !blockedIds.has(p.user_id)))
+      setLikedIds(new Set(likesResult.data?.map(l => l.post_id) ?? []))
       setLoading(false)
     }
 

@@ -14,13 +14,21 @@ function Messages() {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUserId(user.id)
 
-      const { data } = await supabase
-        .from('conversations')
-        .select('*, user1:user1_id(id, username, avatar_url), user2:user2_id(id, username, avatar_url)')
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-        .order('created_at', { ascending: false })
+      const [convResult, blockedResult] = await Promise.all([
+        supabase.from('conversations')
+          .select('*, user1:user1_id(id, username, avatar_url), user2:user2_id(id, username, avatar_url)')
+          .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+          .order('created_at', { ascending: false }),
+        supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+      ])
 
-      setConversations(data ?? [])
+      const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
+      const filtered = (convResult.data ?? []).filter(conv => {
+        const other = conv.user1_id === user.id ? conv.user2 : conv.user1
+        return other && !blockedIds.has(other.id)
+      })
+
+      setConversations(filtered)
       setLoading(false)
     }
     fetch()

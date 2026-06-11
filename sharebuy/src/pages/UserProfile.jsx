@@ -13,6 +13,7 @@ function UserProfile() {
   const [followingCount, setFollowingCount] = useState(0)
   const [currentUserId, setCurrentUserId] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [followLoading, setFollowLoading] = useState(false)
 
   useEffect(() => {
     const fetch = async () => {
@@ -58,6 +59,7 @@ function UserProfile() {
   }, [userId])
 
   const handleFollow = async () => {
+    setFollowLoading(true)
     if (following) {
       await supabase.from('follows').delete()
         .eq('follower_id', currentUserId)
@@ -72,6 +74,7 @@ function UserProfile() {
       setFollowing(true)
       setFollowersCount(prev => prev + 1)
     }
+    setFollowLoading(false)
   }
 
   const handleMessage = async () => {
@@ -161,13 +164,14 @@ function UserProfile() {
             <div className="flex gap-3">
               <button
                 onClick={handleFollow}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                disabled={followLoading}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
                   following
                     ? 'border border-gray-200 text-gray-700'
                     : 'bg-green-500 text-white'
                 }`}
               >
-                {following ? 'Siguiendo' : 'Seguir'}
+                {followLoading ? '...' : (following ? 'Siguiendo' : 'Seguir')}
               </button>
               <button
                 onClick={handleMessage}

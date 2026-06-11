@@ -53,7 +53,10 @@ CREATE POLICY blocked_users_select ON blocked_users FOR SELECT TO authenticated 
 CREATE POLICY blocked_users_insert ON blocked_users FOR INSERT TO authenticated WITH CHECK (blocker_id = auth.uid());
 CREATE POLICY blocked_users_delete ON blocked_users FOR DELETE TO authenticated USING (blocker_id = auth.uid());
 
--- 10. Políticas Storage para chat (después de crear el bucket manualmente)
+-- 10. Columna setup_complete en profiles (para onboarding)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS setup_complete boolean DEFAULT false;
+
+-- 11. Políticas Storage para chat (después de crear el bucket manualmente)
 -- CREATE POLICY chat_insert ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'chat');
 -- CREATE POLICY chat_select ON storage.objects FOR SELECT TO public USING (bucket_id = 'chat');
 -- CREATE POLICY chat_update ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'chat');
