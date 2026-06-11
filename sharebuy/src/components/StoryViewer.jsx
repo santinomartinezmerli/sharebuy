@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const STYLE = document.createElement('style')
 STYLE.textContent = `@keyframes story-fade-out{from{opacity:1}to{opacity:0}}@keyframes story-fade-in{from{opacity:0}to{opacity:1}}`
 document.head.appendChild(STYLE)
 
 function StoryViewer({ groups, groupIndex, storyGroupUserId, onClose, onGroupChange }) {
+  const navigate = useNavigate()
   const stories = groups[groupIndex].stories
   const [current, setCurrent] = useState(0)
   const [progress, setProgress] = useState(0)
   const [paused, setPaused] = useState(false)
   const fadingOut = useRef(null)
+  const containerRef = useRef(null)
 
   const timerRef = useRef(null)
   const touchStartTime = useRef(0)
@@ -79,34 +82,53 @@ function StoryViewer({ groups, groupIndex, storyGroupUserId, onClose, onGroupCha
     return () => clearInterval(timerRef.current)
   }, [paused, current, groupIndex])
 
-  const handleTouchStart = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    touchStartTime.current = Date.now()
-    setPaused(true)
-  }
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
 
-  const handleTouchMove = (e) => {
-    e.stopPropagation()
-  }
-
-  const handleTouchEnd = (e) => {
-    e.stopPropagation()
-    const duration = Date.now() - touchStartTime.current
-    setPaused(false)
-
-    if (duration >= 200) return
-
-    const x = e.changedTouches[0].clientX
-    const screenWidth = window.innerWidth
-    const zone = x / screenWidth
-
-    if (zone < 0.3) {
-      goPrev()
-    } else if (zone > 0.7) {
-      goNext()
+    const onTouchStart = (e) => {
+      e.preventDefault()
+      touchStartTime.current = Date.now()
+      setPaused(true)
     }
-  }
+
+    const onTouchEnd = (e) => {
+      e.preventDefault()
+      const duration = Date.now() - touchStartTime.current
+      setPaused(false)
+      if (duration >= 200) return
+      const x = e.changedTouches[0].clientX
+      const zone = x / window.innerWidth
+      if (zone < 0.3) {
+        if (currentRef.current > 0) {
+          fadingOut.current = stories[currentRef.current]
+          setCurrent(c => c - 1)
+          setTimeout(() => { fadingOut.current = null }, 250)
+        } else if (groupIndex > 0) {
+          isNavigatingBack.current = true
+          onGroupChange(groupIndex - 1)
+        }
+      } else if (zone > 0.7) {
+        if (currentRef.current < stories.length - 1) {
+          fadingOut.current = stories[currentRef.current]
+          setCurrent(c => c + 1)
+          setTimeout(() => { fadingOut.current = null }, 250)
+        } else if (groupIndex < groups.length - 1) {
+          onGroupChange(groupIndex + 1)
+        } else {
+          onClose()
+        }
+      }
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: false })
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [stories, groupIndex])
 
   const handleMouseDown = () => {
     touchStartTime.current = Date.now()
@@ -154,15 +176,10 @@ function StoryViewer({ groups, groupIndex, storyGroupUserId, onClose, onGroupCha
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onMouseUp={(e) => e.stopPropagation()}
-      onTouchStart={(e) => e.stopPropagation()}
-      onTouchMove={(e) => e.stopPropagation()}
-      onTouchEnd={(e) => e.stopPropagation()}
     >
       <div
+        ref={containerRef}
         className="relative w-full max-w-md h-full flex flex-col overflow-hidden"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
       >
@@ -185,8 +202,16 @@ function StoryViewer({ groups, groupIndex, storyGroupUserId, onClose, onGroupCha
         <div
           className={`absolute top-7 left-3 right-3 flex items-center justify-between z-20 pointer-events-none transition-opacity duration-200 ${paused ? 'opacity-50' : 'opacity-100'}`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-medium overflow-hidden">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/user/${story.user_id}`)
+            }}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+            className="flex items-center gap-2 pointer-events-auto"
+          >
+            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-medium overflow-hidden shrink-0">
               {story.profiles?.avatar_url ? (
                 <img src={story.profiles.avatar_url} className="w-full h-full object-cover" draggable={false} />
               ) : (
@@ -194,7 +219,7 @@ function StoryViewer({ groups, groupIndex, storyGroupUserId, onClose, onGroupCha
               )}
             </div>
             <span className="text-white text-sm font-medium drop-shadow-sm">{story.profiles?.username}</span>
-          </div>
+          </button>
           <button onClick={onClose} className="text-white pointer-events-auto p-1">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
