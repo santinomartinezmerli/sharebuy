@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 
 function NewPost() {
   const navigate = useNavigate()
+  const { userId } = useUser()
   const fileInputRef = useRef(null)
   const [form, setForm] = useState({
     product: '',
@@ -32,16 +34,14 @@ function NewPost() {
   }
 
   const handleSubmit = async () => {
-    if (!form.product) return
+    if (!form.product || !userId) return
     setLoading(true)
-
-    const { data: { user } } = await supabase.auth.getUser()
 
     const uploadedUrls = []
 
     for (const entry of images) {
       const ext = entry.file.name.split('.').pop()
-      const filename = `${user.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const filename = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('posts')
         .upload(filename, entry.file)
@@ -60,7 +60,7 @@ function NewPost() {
     }
 
     const { error } = await supabase.from('posts').insert({
-      user_id: user.id,
+      user_id: userId,
       product: form.product,
       brand: form.brand || null,
       price: form.price || null,

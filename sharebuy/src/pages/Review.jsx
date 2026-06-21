@@ -1,24 +1,24 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 
 function Review() {
   const { postId } = useParams()
   const navigate = useNavigate()
+  const { userId } = useUser()
   const [rating, setRating] = useState(0)
   const [content, setContent] = useState('')
   const [recommended, setRecommended] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
-    if (!rating) return
+    if (!rating || !userId) return
     setLoading(true)
-
-    const { data: { user } } = await supabase.auth.getUser()
 
     const { error } = await supabase.from('reviews').insert({
       post_id: postId,
-      user_id: user.id,
+      user_id: userId,
       rating,
       content: content || null,
       recommended,

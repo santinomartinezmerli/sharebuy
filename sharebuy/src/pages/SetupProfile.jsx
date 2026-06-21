@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 
 function SetupProfile() {
   const navigate = useNavigate()
+  const { userId, user } = useUser()
   const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
@@ -11,7 +13,6 @@ function SetupProfile() {
   const [error, setError] = useState(null)
   const [suggestedUsers, setSuggestedUsers] = useState([])
   const [following, setFollowing] = useState({})
-  const [currentUserId, setCurrentUserId] = useState(null)
   const [step, setStep] = useState('profile')
   const [avatarFile, setAvatarFile] = useState(null)
   const [avatarPreview, setAvatarPreview] = useState(null)
@@ -19,10 +20,9 @@ function SetupProfile() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUserId(user.id)
+      if (!userId) return
 
-      const emailPrefix = user.email?.split('@')[0] ?? ''
+      const emailPrefix = user?.email?.split('@')[0] ?? ''
       setUsername(emailPrefix)
 
       const { data: profiles } = await supabase
@@ -30,10 +30,10 @@ function SetupProfile() {
         .select('id, username, avatar_url')
         .limit(20)
 
-      setSuggestedUsers((profiles ?? []).filter(p => p.id !== user.id))
+      setSuggestedUsers((profiles ?? []).filter(p => p.id !== userId))
     }
     fetchData()
-  }, [])
+  }, [userId])
 
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0]
@@ -60,7 +60,7 @@ function SetupProfile() {
     let avatar = avatarUrl
     if (avatarFile) {
       const ext = avatarFile.name.split('.').pop()
-      const filename = `avatar-${currentUserId}-${Date.now()}.${ext}`
+      const filename = `avatar-${userId}-${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filename, avatarFile)
@@ -71,7 +71,7 @@ function SetupProfile() {
     }
 
     const { error: updateError } = await supabase.from('profiles').upsert({
-      id: currentUserId,
+      id: userId,
       username: trimmed,
       bio: bio.trim() || null,
       avatar_url: avatar || null,
@@ -91,12 +91,12 @@ function SetupProfile() {
   const handleFollow = async (targetId) => {
     if (following[targetId]) {
       await supabase.from('follows').delete()
-        .eq('follower_id', currentUserId)
+        .eq('follower_id', userId)
         .eq('following_id', targetId)
       setFollowing(prev => ({ ...prev, [targetId]: false }))
     } else {
       await supabase.from('follows').insert({
-        follower_id: currentUserId, following_id: targetId
+        follower_id: userId, following_id: targetId
       })
       setFollowing(prev => ({ ...prev, [targetId]: true }))
     }

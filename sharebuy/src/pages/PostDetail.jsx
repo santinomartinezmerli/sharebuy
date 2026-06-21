@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 import ImageCarousel from '../components/ImageCarousel'
 import Avatar from '../components/Avatar'
 import { SkeletonPostDetail } from '../components/Skeleton'
@@ -11,11 +12,11 @@ function PostDetail() {
   const navigate = useNavigate()
   const location = useLocation()
   const commentInputRef = useRef(null)
+  const { userId: currentUserId } = useUser()
   const [post, setPost] = useState(location.state?.post ?? null)
   const [reviews, setReviews] = useState([])
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
-  const [currentUserId, setCurrentUserId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -28,10 +29,8 @@ function PostDetail() {
   const commentsEndRef = useRef(null)
 
   useEffect(() => {
+    if (!currentUserId) return
     const fetch = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUserId(user.id)
-
       if (!post) {
         const { data: postData } = await supabase
           .from('posts')
@@ -57,7 +56,7 @@ function PostDetail() {
         .from('saves')
         .select('id')
         .eq('post_id', postId)
-        .eq('user_id', user.id)
+        .eq('user_id', currentUserId)
         .maybeSingle()
 
       setReviews(reviewsData ?? [])
@@ -66,7 +65,7 @@ function PostDetail() {
       setLoading(false)
     }
     fetch()
-  }, [postId])
+  }, [postId, currentUserId])
 
   useEffect(() => {
     if (!loading && searchParams.get('comment') === 'true') {

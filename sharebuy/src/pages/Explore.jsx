@@ -1,33 +1,33 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 import EmptyState from '../components/EmptyState'
 import { motion } from 'framer-motion'
 const CATEGORIES = ['Todo', 'Ropa', 'Tecnología', 'Hogar', 'Deporte', 'Belleza']
 
 function Explore() {
   const navigate = useNavigate()
+  const { userId } = useUser()
   const [posts, setPosts] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('Todo')
-  const [currentUserId, setCurrentUserId] = useState(null)
   const [likedIds, setLikedIds] = useState(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({ minPrice: '', maxPrice: '', brand: '' })
 
   const refreshExplore = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
     const [postsResult, likesResult, blockedResult] = await Promise.all([
       supabase.from('posts').select('*, profiles(id, username, avatar_url)').order('created_at', { ascending: false }).limit(40),
-      supabase.from('likes').select('post_id').eq('user_id', user.id),
-      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+      supabase.from('likes').select('post_id').eq('user_id', userId),
+      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', userId)
     ])
     const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
     if (!postsResult.error) setPosts((postsResult.data ?? []).filter(p => !blockedIds.has(p.user_id)))
     setLikedIds(new Set(likesResult.data?.map(l => l.post_id) ?? []))
-  }, [])
+  }, [userId])
 
   useEffect(() => {
     window.__ptrRefresh = refreshExplore
@@ -38,13 +38,12 @@ function Explore() {
 
   useEffect(() => {
     const fetchPosts = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUserId(user.id)
+      if (!userId) return
 
       const [postsResult, likesResult, blockedResult] = await Promise.all([
         supabase.from('posts').select('*, profiles(id, username, avatar_url)').order('created_at', { ascending: false }),
-        supabase.from('likes').select('post_id').eq('user_id', user.id),
-        supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+        supabase.from('likes').select('post_id').eq('user_id', userId),
+        supabase.from('blocked_users').select('blocked_id').eq('blocker_id', userId)
       ])
 
       const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
@@ -54,7 +53,7 @@ function Explore() {
     }
 
     fetchPosts()
-  }, [])
+  }, [userId])
 
   useEffect(() => {
     const searchUsers = async () => {
@@ -79,14 +78,14 @@ function Explore() {
     if (isLiked) {
       await supabase.from('likes').delete()
         .eq('post_id', postId)
-        .eq('user_id', currentUserId)
+        .eq('user_id', userId)
       setLikedIds(prev => {
         const next = new Set(prev)
         next.delete(postId)
         return next
       })
     } else {
-      await supabase.from('likes').insert({ post_id: postId, user_id: currentUserId })
+      await supabase.from('likes').insert({ post_id: postId, user_id: userId })
       setLikedIds(prev => new Set([...prev, postId]))
     }
   }

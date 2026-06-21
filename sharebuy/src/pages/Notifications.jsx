@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 import EmptyState from '../components/EmptyState'
 import { SkeletonList } from '../components/Skeleton'
 import { motion } from 'framer-motion'
@@ -15,17 +16,18 @@ function timeAgo(dateStr) {
 
 function Notifications() {
   const navigate = useNavigate()
+  const { userId } = useUser()
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchNotifications = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      if (!userId) return
 
       const { data: myPosts } = await supabase
         .from('posts')
         .select('id, product, created_at')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
 
       const myPostIds = myPosts?.map(p => p.id) ?? []
       const postMap = Object.fromEntries((myPosts ?? []).map(p => [p.id, p]))
@@ -36,7 +38,7 @@ function Notifications() {
       const { data: followsData } = await supabase
         .from('follows')
         .select('id, follower_id, created_at')
-        .eq('following_id', user.id)
+        .eq('following_id', userId)
         .order('created_at', { ascending: false })
         .limit(30)
 
@@ -58,7 +60,7 @@ function Notifications() {
       if (myPostIds.length > 0) {
         const { data: likesData } = await supabase
           .from('likes').select('id, post_id, user_id, created_at')
-          .in('post_id', myPostIds).neq('user_id', user.id)
+          .in('post_id', myPostIds).neq('user_id', userId)
           .order('created_at', { ascending: false }).limit(30)
 
         if (likesData && likesData.length > 0) {
@@ -81,7 +83,7 @@ function Notifications() {
       if (myPostIds.length > 0) {
         const { data: commentsData } = await supabase
           .from('comments').select('id, post_id, user_id, content, created_at')
-          .in('post_id', myPostIds).neq('user_id', user.id)
+          .in('post_id', myPostIds).neq('user_id', userId)
           .order('created_at', { ascending: false }).limit(30)
 
         if (commentsData && commentsData.length > 0) {
@@ -119,7 +121,7 @@ function Notifications() {
       // Real-time subscription
       const channel = supabase.channel('notifications-realtime')
         .on('postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'follows', filter: `following_id=eq.${user.id}` },
+          { event: 'INSERT', schema: 'public', table: 'follows', filter: `following_id=eq.${userId}` },
           async (payload) => {
             const { data: profile } = await supabase
               .from('profiles').select('username').eq('id', payload.new.follower_id).single()
@@ -137,7 +139,7 @@ function Notifications() {
     }
 
     fetchNotifications()
-  }, [])
+  }, [userId])
 
   if (loading) return <SkeletonList count={6} />
 

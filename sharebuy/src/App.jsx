@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { supabase } from './lib/supabase'
+import { useUser } from './lib/UserContext.jsx'
 import { DarkModeProvider } from './lib/DarkModeContext'
 import Landing from './pages/Landing'
 import SetupProfile from './pages/SetupProfile'
@@ -18,10 +18,10 @@ import Messages from './pages/Messages'
 import Chat from './pages/Chat'
 import FollowList from './pages/FollowList'
 import EditPost from './pages/EditPost'
+import { supabase } from './lib/supabase'
 
 function App() {
-  const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { session, loading } = useUser()
   const [needsSetup, setNeedsSetup] = useState(false)
 
   const checkProfile = async (user) => {
@@ -50,17 +50,8 @@ function App() {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-      if (session) checkProfile(session.user)
-    })
-
-    supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      if (session) checkProfile(session.user)
-    })
-  }, [])
+    if (session) checkProfile(session.user)
+  }, [session])
 
   if (loading) return (
     <div className="flex items-center justify-center h-screen">

@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useDarkMode } from '../lib/DarkModeContext'
 import { usePullToRefresh, PullIndicator } from '../hooks/usePullToRefresh'
 import { useNavDirection } from '../hooks/useNavDirection'
+import { useUser } from '../lib/UserContext.jsx'
 
 function Layout({ children }) {
   const location = useLocation()
@@ -13,6 +14,7 @@ function Layout({ children }) {
     if (fn) { fn().catch?.(e => console.error('PTR error:', e)) } else { window.location.reload() }
   })
   const { dark, toggle } = useDarkMode()
+  const { user } = useUser()
   const direction = useNavDirection()
   const scrollMap = useRef({})
   const prevPathRef = useRef(location.pathname)
@@ -31,7 +33,6 @@ function Layout({ children }) {
   const [unreadCount, setUnreadCount] = useState(0)
 
   const fetchUnread = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     const { data: convs } = await supabase.from('conversations').select('id').or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
@@ -51,32 +52,28 @@ function Layout({ children }) {
       if (!lastReadAt || new Date(msg.created_at).getTime() > lastReadAt) count++
     }
     setUnreadCount(count)
-  }, [])
+  }, [user])
 
   // Re-fetch unread count on every navigation (so badge updates after viewing a chat)
   useEffect(() => { fetchUnread() }, [location, fetchUnread])
 
   // Real-time subscription for new messages
   useEffect(() => {
-    let channel
-    const setup = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      channel = supabase.channel('unread-messages')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-          if (payload.new.sender_id !== user.id) {
-            const lr = JSON.parse(localStorage.getItem('chatLastRead') || '{}')
-            const lastReadAt = lr[payload.new.conversation_id]
-            if (!lastReadAt || new Date(payload.new.created_at).getTime() > lastReadAt) {
-              setUnreadCount(prev => prev + 1)
-            }
+    if (!user) return
+    const channel = supabase.channel('unread-messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        if (payload.new.sender_id !== user.id) {
+          const lr = JSON.parse(localStorage.getItem('chatLastRead') || '{}')
+          const lastReadAt = lr[payload.new.conversation_id]
+          if (!lastReadAt || new Date(payload.new.created_at).getTime() > lastReadAt) {
+            setUnreadCount(prev => prev + 1)
           }
-        })
-        .subscribe()
-    }
-    setup()
-    return () => { if (channel) supabase.removeChannel(channel) }
-  }, [])
+        }
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [user])
 
   return (
     <div className="flex flex-col h-dvh max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden">

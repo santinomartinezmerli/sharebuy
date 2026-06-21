@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 import { SkeletonList } from '../components/Skeleton'
 
 function FollowList() {
@@ -8,15 +9,14 @@ function FollowList() {
   const [searchParams] = useSearchParams()
   const type = searchParams.get('type') || 'followers'
   const navigate = useNavigate()
+  const { userId: currentUserId } = useUser()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
-  const [currentUserId, setCurrentUserId] = useState(null)
   const [followingMap, setFollowingMap] = useState({})
 
   useEffect(() => {
     const fetch = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUserId(user.id)
+      if (!currentUserId) return
 
       let query
       if (type === 'followers') {
@@ -39,8 +39,8 @@ function FollowList() {
         const { data: follows } = await supabase
           .from('follows')
           .select('following_id')
-          .eq('follower_id', user.id)
-          .in('following_id', ids)
+        .eq('follower_id', currentUserId)
+        .in('following_id', ids)
         const map = {}
         ;(follows ?? []).forEach(f => { map[f.following_id] = true })
         setFollowingMap(map)
@@ -49,7 +49,7 @@ function FollowList() {
       setLoading(false)
     }
     fetch()
-  }, [userId, type])
+  }, [userId, type, currentUserId])
 
   const handleFollow = async (targetId) => {
     const wasFollowing = followingMap[targetId]

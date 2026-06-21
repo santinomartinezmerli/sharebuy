@@ -1,44 +1,43 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 import { SkeletonProfile } from '../components/Skeleton'
 import { motion } from 'framer-motion'
 
 function Profile() {
   const navigate = useNavigate()
+  const { userId } = useUser()
   const [profile, setProfile] = useState(null)
   const [posts, setPosts] = useState([])
   const [savedPosts, setSavedPosts] = useState([])
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [userId, setUserId] = useState(null)
   const [tab, setTab] = useState('posts')
 
   useEffect(() => {
+    if (!userId) return
     const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUserId(user.id)
-
       const { data: profileData } = await supabase
-        .from('profiles').select('*').eq('id', user.id).single()
+        .from('profiles').select('*').eq('id', userId).single()
 
       const { data: postsData } = await supabase
-        .from('posts').select('*').eq('user_id', user.id)
+        .from('posts').select('*').eq('user_id', userId)
         .order('created_at', { ascending: false })
 
       const { count: followers } = await supabase
         .from('follows').select('*', { count: 'exact', head: true })
-        .eq('following_id', user.id)
+        .eq('following_id', userId)
 
       const { count: followingC } = await supabase
         .from('follows').select('*', { count: 'exact', head: true })
-        .eq('follower_id', user.id)
+        .eq('follower_id', userId)
 
       const { data: savedData } = await supabase
         .from('saves')
         .select('post_id')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
 
       if (savedData && savedData.length > 0) {
         const savedIds = savedData.map(s => s.post_id)
@@ -58,7 +57,7 @@ function Profile() {
     }
 
     fetchProfile()
-  }, [])
+  }, [userId])
 
   if (loading) return <SkeletonProfile />
 

@@ -1,26 +1,25 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 import { SkeletonProfile } from '../components/Skeleton'
 import { motion } from 'framer-motion'
 
 function UserProfile() {
   const { userId } = useParams()
   const navigate = useNavigate()
+  const { userId: currentUserId } = useUser()
   const [profile, setProfile] = useState(null)
   const [posts, setPosts] = useState([])
   const [following, setFollowing] = useState(false)
   const [blocked, setBlocked] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
-  const [currentUserId, setCurrentUserId] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!currentUserId) return
     const fetch = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUserId(user.id)
-
       const { data: profileData } = await supabase
         .from('profiles').select('*').eq('id', userId).single()
 
@@ -38,13 +37,13 @@ function UserProfile() {
 
       const { data: followData } = await supabase
         .from('follows').select('id')
-        .eq('follower_id', user.id)
+        .eq('follower_id', currentUserId)
         .eq('following_id', userId)
         .maybeSingle()
 
       const { data: blockData } = await supabase
         .from('blocked_users').select('id')
-        .eq('blocker_id', user.id)
+        .eq('blocker_id', currentUserId)
         .eq('blocked_id', userId)
         .maybeSingle()
 
@@ -57,7 +56,7 @@ function UserProfile() {
       setLoading(false)
     }
     fetch()
-  }, [userId])
+  }, [userId, currentUserId])
 
   const handleFollow = async () => {
     const wasFollowing = following

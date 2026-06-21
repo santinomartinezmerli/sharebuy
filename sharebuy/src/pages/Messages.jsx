@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
 import { SkeletonList } from '../components/Skeleton'
@@ -9,25 +10,24 @@ import { motion } from 'framer-motion'
 
 function Messages() {
   const navigate = useNavigate()
+  const { userId } = useUser()
   const [conversations, setConversations] = useState([])
   const [loading, setLoading] = useState(true)
-  const [currentUserId, setCurrentUserId] = useState(null)
 
-  const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    setCurrentUserId(user.id)
+  const fetchData = useCallback(async () => {
+    if (!userId) return
 
     const [convResult, blockedResult] = await Promise.all([
       supabase.from('conversations')
         .select('*, user1:user1_id(id, username, avatar_url), user2:user2_id(id, username, avatar_url)')
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
         .order('created_at', { ascending: false }),
-      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', userId)
     ])
 
     const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
     const filtered = (convResult.data ?? []).filter(conv => {
-      const other = conv.user1_id === user.id ? conv.user2 : conv.user1
+      const other = conv.user1_id === userId ? conv.user2 : conv.user1
       return other && !blockedIds.has(other.id)
     })
 
@@ -50,7 +50,7 @@ function Messages() {
           seenConv.add(msg.conversation_id)
         }
         const lastReadAt = lastRead[msg.conversation_id]
-        if (msg.sender_id !== user.id && (!lastReadAt || new Date(msg.created_at).getTime() > lastReadAt)) {
+        if (msg.sender_id !== userId && (!lastReadAt || new Date(msg.created_at).getTime() > lastReadAt)) {
           unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
         }
       }
@@ -62,21 +62,21 @@ function Messages() {
       unreadCount: unreadMap[c.id] ?? 0,
     })))
     setLoading(false)
-  }
+  }, [userId])
 
   useEffect(() => {
     fetchData()
     const onVisible = () => { if (!document.hidden) fetchData() }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [])
+  }, [fetchData])
 
   useEffect(() => {
     window.__ptrRefresh = fetchData
     const handler = () => fetchData()
     window.addEventListener('ptr-refresh', handler)
     return () => { window.removeEventListener('ptr-refresh', handler); window.__ptrRefresh = null }
-  }, [])
+  }, [fetchData])
 
   if (loading) return <SkeletonList count={6} />
 
@@ -105,7 +105,7 @@ function Messages() {
       ) : (
         <div className="flex flex-col">
           {conversations.map(conv => {
-            const other = conv.user1_id === currentUserId ? conv.user2 : conv.user1
+            const other = conv.user1_id === userId ? conv.user2 : conv.user1
             return (
               <motion.button
                 key={conv.id} whileTap={{ scale: 0.98 }}
@@ -124,7 +124,7 @@ function Messages() {
                   </div>
                   {conv.lastMessage && (
                     <p className="text-xs text-gray-400 truncate mt-0.5">
-                      {conv.lastMessage.sender_id === currentUserId
+                      {conv.lastMessage.sender_id === userId
                         ? '✓ Enviado'
                         : /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(conv.lastMessage.content)
                           ? '📷 Foto'

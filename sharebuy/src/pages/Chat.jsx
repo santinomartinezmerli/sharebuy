@@ -1,16 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 import Avatar from '../components/Avatar'
 import { SkeletonChat } from '../components/Skeleton'
 
 function Chat() {
   const { conversationId } = useParams()
   const navigate = useNavigate()
+  const { userId } = useUser()
   const [messages, setMessages] = useState([])
   const [otherUser, setOtherUser] = useState(null)
   const [newMessage, setNewMessage] = useState('')
-  const [currentUserId, setCurrentUserId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState(null)
@@ -33,8 +34,7 @@ function Chat() {
 
   useEffect(() => {
     const fetch = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUserId(user.id)
+      if (!userId) return
 
       const { data: conv } = await supabase
         .from('conversations')
@@ -43,7 +43,7 @@ function Chat() {
         .single()
 
       if (conv) {
-        setOtherUser(conv.user1_id === user.id ? conv.user2 : conv.user1)
+        setOtherUser(conv.user1_id === userId ? conv.user2 : conv.user1)
       }
 
       const { data: msgs } = await supabase
@@ -56,7 +56,7 @@ function Chat() {
 
       // Mark unread messages as read in DB (if column exists)
       const unreadIds = (msgs ?? [])
-        .filter(m => m.sender_id !== user.id && !m.read_at)
+        .filter(m => m.sender_id !== userId && !m.read_at)
         .map(m => m.id)
       if (unreadIds.length > 0) {
         const { error } = await supabase.from('messages')
@@ -68,10 +68,10 @@ function Chat() {
       setLoading(false)
     }
     fetch()
-  }, [conversationId])
+  }, [conversationId, userId])
 
   useEffect(() => {
-    if (!currentUserId) return
+    if (!userId) return
 
     const channel = supabase.channel(`chat-${conversationId}`)
       .on('postgres_changes', {
@@ -83,7 +83,7 @@ function Chat() {
         const msg = payload.new
         setMessages(prev => [...prev, msg])
         // Auto-mark as read
-        if (msg.sender_id !== currentUserId) {
+        if (msg.sender_id !== userId) {
           await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('id', msg.id)
           setReadMap(prev => ({ ...prev, [msg.id]: true }))
         }
@@ -94,7 +94,7 @@ function Chat() {
         setOtherTyping(false)
       })
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
-        if (payload.user_id !== currentUserId) {
+        if (payload.user_id !== userId) {
           setOtherTyping(true)
           clearTimeout(typingTimeoutRef.current)
           typingTimeoutRef.current = setTimeout(() => setOtherTyping(false), 2000)
@@ -103,7 +103,7 @@ function Chat() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [conversationId, currentUserId])
+  }, [conversationId, userId])
 
   const handleSend = async () => {
     const text = newMessage.trim()
@@ -120,7 +120,7 @@ function Chat() {
 
       for (const photo of photos) {
         const ext = photo.file.name.split('.').pop()
-        const filename = `chat-${currentUserId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+        const filename = `chat-${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
         const { error: uploadError } = await supabase.storage
           .from('chat')
           .upload(filename, photo.file)
@@ -133,7 +133,7 @@ function Chat() {
 
         const { data: urlData } = supabase.storage.from('chat').getPublicUrl(filename)
         await supabase.from('messages').insert({
-          conversation_id: conversationId, sender_id: currentUserId,
+          conversation_id: conversationId, sender_id: userId,
           content: urlData.publicUrl,
         })
       }
@@ -143,7 +143,7 @@ function Chat() {
 
     if (text) {
       await supabase.from('messages').insert({
-        conversation_id: conversationId, sender_id: currentUserId, content: text
+        conversation_id: conversationId, sender_id: userId, content: text
       })
     }
   }
@@ -160,7 +160,7 @@ function Chat() {
       setTyping(true)
       supabase.channel(`chat-${conversationId}`).send({
         type: 'broadcast', event: 'typing',
-        payload: { user_id: currentUserId }
+        payload: { user_id: userId }
       })
       setTimeout(() => setTyping(false), 2000)
     }
@@ -230,7 +230,7 @@ function Chat() {
           </p>
         )}
         {[...messages].reverse().map(msg => {
-          const isMine = msg.sender_id === currentUserId
+          const isMine = msg.sender_id === userId
           const isImage = msg.is_image || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(msg.content)
           const isEditing = editingMsgId === msg.id
           const isDeleting = deletingMsgId === msg.id

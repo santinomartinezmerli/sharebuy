@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useUser } from '../lib/UserContext.jsx'
 import { SkeletonForm } from '../components/Skeleton'
 
 function EditProfile() {
   const navigate = useNavigate()
+  const { userId } = useUser()
   const [form, setForm] = useState({ username: '', bio: '' })
   const [avatarUrl, setAvatarUrl] = useState(null)
   const [avatarFile, setAvatarFile] = useState(null)
@@ -13,17 +15,15 @@ function EditProfile() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  const [userId, setUserId] = useState(null)
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUserId(user.id)
+      if (!userId) return
 
       const { data } = await supabase
         .from('profiles')
         .select('username, bio, avatar_url')
-        .eq('id', user.id)
+        .eq('id', userId)
         .single()
 
       if (data) {
@@ -33,7 +33,7 @@ function EditProfile() {
       setLoading(false)
     }
     fetchProfile()
-  }, [])
+  }, [userId])
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0]
