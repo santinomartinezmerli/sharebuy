@@ -1,133 +1,115 @@
 # ShareBuy 🛍️
 
-> Red social para compartir y reseñar compras — Social network for sharing and reviewing purchases.
+> **Social network for sharing and reviewing purchases.**  
+> Discover what people are buying, share your own finds, and connect with others through the things you love.
 
-**Live demo:** [sharebuy.netlify.app](https://sharebuy.netlify.app)
-
----
-
-## ¿Qué es ShareBuy?
-
-ShareBuy es una PWA mobile-first donde los usuarios pueden compartir sus compras con amigos, escribir reseñas después de usar el producto, y descubrir qué están comprando otras personas. Es como Instagram, pero enfocado en el consumo real: sin presión estética, sin filtros, solo compartir lo que compraste y cómo te fue.
-
-La app también permite marcar productos en venta, con un historial de dueños que hace la compraventa más transparente y confiable.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-sharebuy.netlify.app-brightgreen?style=for-the-badge&logo=netlify)](https://sharebuy.netlify.app)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react)](https://react.dev)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com)
 
 ---
 
-## Tech Stack
+## 📱 Preview
 
-| Capa | Tecnología |
-|------|-----------|
-| Frontend | React 19 + Vite |
-| Estilos | Tailwind CSS v4 |
-| Animaciones | Framer Motion |
+| Feed & Stories | Post & Sell | Chats |
+|:-:|:-:|:-:|
+| ![Feed](/assets/feed.gif) | ![Sell & Stories](/assets/sellAndStories.gif) | ![Chats](/assets/chats.gif) |
+
+| Profile | Notifications |
+|:-:|:-:|
+| ![Profile](/assets/profile.gif) | ![Notifications](/assets/notifications.gif) |
+
+---
+
+## ✨ Features
+
+- **Social Feed** — scroll through purchases from people you follow, with multi-image posts and brand tags
+- **Stories** — ephemeral stories tied to your purchases, Instagram-style
+- **Post a Purchase** — upload photos, add brand, price, rating and a review
+- **Likes & Comments** — real-time interactions powered by Supabase
+- **Follow System** — follow users and build your own feed
+- **Direct Messages** — real-time DMs via Supabase Realtime channels
+- **Notifications** — get notified on likes, comments, follows and more
+- **Bookmarks** — save posts to revisit later
+- **Explore & Search** — discover users and purchases
+- **User Profiles** — grid view of all your purchases, followers/following count
+- **Google OAuth** — one-click sign in
+- **Dark Mode** — full dark UI out of the box
+- **PWA** — installable on mobile, works offline
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18 + Vite |
+| Styling | Tailwind CSS v4 |
 | Backend / DB | Supabase (PostgreSQL) |
-| Auth | Supabase Auth (Google OAuth + Email) |
+| Auth | Supabase Auth + Google OAuth |
 | Storage | Supabase Storage |
-| Realtime | Supabase Realtime (mensajes, notificaciones) |
-| Deploy | Netlify |
-| PWA | manifest.json + service worker |
+| Realtime | Supabase Realtime Channels |
+| Deployment | Netlify |
 
 ---
 
-## Features
-
-### Social
-- Feed principal filtrado por usuarios seguidos
-- Stories de compras recientes (últimas 24hs)
-- Sistema de likes con contador en tiempo real
-- Comentarios en posts
-- Seguir / dejar de seguir usuarios
-- Mensajes directos con fotos adjuntas, editar/borrar mensajes, recibos de leído e indicador de escritura en tiempo real
-- Bookmarks / guardados
-- Reportar posts y bloquear usuarios
-
-### Compras
-- Publicar compras con hasta 6 fotos (carrusel)
-- Campos opcionales: precio, marca, dónde se compró, categoría
-- Marcar producto en venta con precio de venta diferenciado
-- Historial de dueños de un producto
-
-### Reviews
-- Recordatorio automático al mes de la compra para escribir una review
-- Segunda review a los 6 meses
-- Rating con estrellas + texto + recomendación (👍/👎)
-- Puntaje promedio y % de recomendación visible en detalle del producto
-
-### Explorar
-- Grilla tipo Pinterest con posts de toda la comunidad
-- Búsqueda de productos y marcas
-- Búsqueda de usuarios por username
-- Filtros por categoría (Ropa, Tecnología, Hogar, Deporte, Belleza)
-
-### UX / Performance
-- Dark mode persistente
-- Infinite scroll con skeleton loading (IntersectionObserver)
-- Pull to refresh
-- Transiciones con Framer Motion
-- PWA instalable desde el navegador (Android e iOS)
-- Optimistic UI en likes, follows y bookmarks
-
----
-
-## Decisiones técnicas
-
-**¿Por qué Supabase?**
-Supabase ofrece PostgreSQL con Row Level Security, Auth con OAuth incluido, Storage para imágenes y Realtime sobre WebSockets, todo en un mismo servicio. Para una red social donde las relaciones entre datos son importantes (usuarios → posts → likes → follows → mensajes), un modelo relacional fue más adecuado que MongoDB.
-
-**¿Por qué React + Vite en vez de Next.js?**
-ShareBuy es una SPA mobile-first. No necesitaba SSR ni SSG, y Vite ofrece un DX mucho más rápido para desarrollo iterativo. La PWA se configuró manualmente sobre Vite.
-
-**¿Por qué Tailwind v4?**
-Tailwind v4 con el plugin de Vite elimina el paso de compilación separado y mejora el performance del build. El dark mode se implementó con las variantes nativas de v4.
-
-**Realtime sin polling**
-Los mensajes directos y el badge de mensajes no leídos usan `supabase.channel()` con `postgres_changes`, evitando polling y manteniendo la UI sincronizada sin recargas.
-
----
-
-## Estructura del proyecto
+## 🗄️ Database Schema (simplified)
 
 ```
-src/
-  components/       # Componentes reutilizables (Avatar, Layout, StoryViewer...)
-  pages/            # Una página por ruta (Feed, Explore, Profile, Chat...)
-  lib/
-    supabase.js     # Cliente de Supabase
+users          → id, username, avatar_url, bio
+posts          → id, user_id, images[], brand, price, rating, caption
+likes          → user_id, post_id
+comments       → id, user_id, post_id, content
+follows        → follower_id, following_id
+notifications  → id, user_id, type, from_user_id, post_id
+messages       → id, sender_id, receiver_id, content, channel_id
+stories        → id, user_id, post_id, expires_at
+bookmarks      → user_id, post_id
 ```
 
 ---
 
-## Base de datos
+## 🚀 Getting Started
 
-El schema completo está en `supabase-migrations.sql`. Las tablas principales son:
+### Prerequisites
+- Node.js 18+
+- A [Supabase](https://supabase.com) project
 
-- `profiles` — extiende auth.users con username, bio, avatar
-- `posts` — publicaciones con imagen, producto, precio, categoría
-- `likes`, `comments`, `saves` — interacciones sociales
-- `follows` — grafo de seguidores
-- `conversations`, `messages` — mensajes directos
-- `reviews` — reseñas con rating, texto y recomendación
-- `reports`, `blocked_users` — moderación
-
-Todas las tablas tienen Row Level Security habilitado.
-
----
-
-## Instalación local
+### Installation
 
 ```bash
+# Clone the repo
 git clone https://github.com/santinomartinezmerli/Share_buy.git
 cd Share_buy
+
+# Install dependencies
 npm install
+
+# Set up environment variables
+cp .env.example .env
+# Fill in your Supabase URL and anon key
 ```
 
-Creá un archivo `.env` con tus credenciales de Supabase:
+### Environment Variables
 
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_anon_key
 ```
-VITE_SUPABASE_URL=tu_url
-VITE_SUPABASE_ANON_KEY=tu_anon_key
+
+### Database Setup
+
+Run the included migrations file against your Supabase project:
+
+```bash
+# Via Supabase CLI
+supabase db push --db-url your_db_url < supabase/migrations/001_add_indexes.sql
 ```
+
+Or paste the migration directly into the Supabase SQL editor.
+
+### Run locally
 
 ```bash
 npm run dev
@@ -135,8 +117,42 @@ npm run dev
 
 ---
 
-## Autor
+## 📁 Project Structure
 
-**Santino Martinez Merli**
-Estudiante de Analista en Sistemas — ORT Argentina
-[LinkedIn](https://www.linkedin.com/in/santino-mart%C3%ADnez-merli-683473214/) · [GitHub](https://github.com/santinomartinezmerli)
+```
+src/
+├── components/       # Reusable UI components
+│   ├── Feed/
+│   ├── Stories/
+│   ├── Post/
+│   ├── Profile/
+│   ├── Chat/
+│   └── Notifications/
+├── pages/            # Route-level views
+├── hooks/            # Custom React hooks
+├── lib/              # Supabase client config + UserContext
+└── utils/            # Helper functions
+```
+
+---
+
+## 🔭 Roadmap
+
+- [x] UserContext + custom hooks for scalability
+- [ ] TanStack Query for server state management
+- [ ] Push notifications (Web Push API)
+- [ ] Purchase review reminders
+- [ ] Trending posts / explore algorithm
+- [ ] Price history tracking
+
+---
+
+## 👤 Author
+
+**Santino Martinez Merli**  
+Systems Analyst Student @ ORT Argentina  
+[GitHub](https://github.com/santinomartinezmerli) · [Email](mailto:santinomartinezmerli@gmail.com)
+
+---
+
+> Built as a portfolio project and genuine product idea. Feedback welcome.
