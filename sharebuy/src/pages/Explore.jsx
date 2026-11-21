@@ -1,111 +1,77 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { useQuery } from '@tanstack/react-query'
 import { useUser } from '../lib/UserContext.jsx'
 import EmptyState from '../components/EmptyState'
 import { motion } from 'framer-motion'
+import { useExplore } from '../hooks/useExplore'
+import { useExploreLike } from '../hooks/useExploreLike'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { fetchBrands, searchUsers } from '../services/explore'
 const CATEGORIES = ['Todo', 'Ropa', 'Tecnología', 'Hogar', 'Deporte', 'Belleza']
 
 function Explore() {
   const navigate = useNavigate()
   const { userId } = useUser()
-  const [posts, setPosts] = useState([])
   const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('Todo')
-  const [likedIds, setLikedIds] = useState(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({ minPrice: '', maxPrice: '', brand: '' })
+  const sentinelRef = useRef(null)
 
-  const refreshExplore = useCallback(async () => {
-    const [postsResult, likesResult, blockedResult] = await Promise.all([
-      supabase.from('posts').select('*, profiles(id, username, avatar_url)').order('created_at', { ascending: false }).limit(40),
-      supabase.from('likes').select('post_id').eq('user_id', userId),
-      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', userId)
-    ])
-    const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
-    if (!postsResult.error) setPosts((postsResult.data ?? []).filter(p => !blockedIds.has(p.user_id)))
-    setLikedIds(new Set(likesResult.data?.map(l => l.post_id) ?? []))
-  }, [userId])
+  // Search, category, price and brand are filtered on the server (get_explore). Wait 300 ms
+  // after the last change before asking, so typing does not fire one request per key.
+  const dSearch = useDebouncedValue(search, 300)
+  const dCategory = useDebouncedValue(category, 300)
+  const dMinPrice = useDebouncedValue(filters.minPrice, 300)
+  const dMaxPrice = useDebouncedValue(filters.maxPrice, 300)
+  const dBrand = useDebouncedValue(filters.brand, 300)
+  const criteria = useMemo(
+    () => ({ search: dSearch, category: dCategory, brand: dBrand, minPrice: dMinPrice, maxPrice: dMaxPrice }),
+    [dSearch, dCategory, dBrand, dMinPrice, dMaxPrice]
+  )
 
-  useEffect(() => {
-    window.__ptrRefresh = refreshExplore
-    const handler = () => refreshExplore()
-    window.addEventListener('ptr-refresh', handler)
-    return () => { window.removeEventListener('ptr-refresh', handler); window.__ptrRefresh = null }
-  }, [refreshExplore])
+  // 24 posts per request. Pull-to-refresh is registered inside useExplore.
+  const { posts, loading, updating, loadingMore, hasMore, loadMore } = useExplore(userId, criteria)
+  const { toggleLike } = useExploreLike(userId)
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      if (!userId) return
-
-      const [postsResult, likesResult, blockedResult] = await Promise.all([
-        supabase.from('posts').select('*, profiles(id, username, avatar_url)').order('created_at', { ascending: false }),
-        supabase.from('likes').select('post_id').eq('user_id', userId),
-        supabase.from('blocked_users').select('blocked_id').eq('blocker_id', userId)
-      ])
-
-      const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
-      if (!postsResult.error) setPosts((postsResult.data ?? []).filter(p => !blockedIds.has(p.user_id)))
-      setLikedIds(new Set(likesResult.data?.map(l => l.post_id) ?? []))
-      setLoading(false)
-    }
-
-    fetchPosts()
-  }, [userId])
-
-  useEffect(() => {
-    const searchUsers = async () => {
-      if (search.length < 2) { setUsers([]); return }
-
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .ilike('username', `%${search}%`)
-        .limit(10)
-
-      setUsers(data ?? [])
-    }
-
-    searchUsers()
-  }, [search])
-
-  const handleLike = async (e, postId) => {
-    e.stopPropagation()
-    const isLiked = likedIds.has(postId)
-
-    if (isLiked) {
-      await supabase.from('likes').delete()
-        .eq('post_id', postId)
-        .eq('user_id', userId)
-      setLikedIds(prev => {
-        const next = new Set(prev)
-        next.delete(postId)
-        return next
-      })
-    } else {
-      await supabase.from('likes').insert({ post_id: postId, user_id: userId })
-      setLikedIds(prev => new Set([...prev, postId]))
-    }
-  }
-
-  const filtered = posts.filter(post => {
-    const matchSearch = search === '' ||
-      post.product.toLowerCase().includes(search.toLowerCase()) ||
-      post.brand?.toLowerCase().includes(search.toLowerCase())
-
-    const matchCategory = category === 'Todo' || post.category === category
-
-    const priceNum = parseFloat(post.price)
-    const matchMin = !filters.minPrice || (!isNaN(priceNum) && priceNum >= parseFloat(filters.minPrice))
-    const matchMax = !filters.maxPrice || (!isNaN(priceNum) && priceNum <= parseFloat(filters.maxPrice))
-    const matchBrand = !filters.brand || post.brand?.toLowerCase().includes(filters.brand.toLowerCase())
-
-    return matchSearch && matchCategory && matchMin && matchMax && matchBrand
+  // The brand list is only requested the first time the filters panel is opened.
+  const { data: brandOptions } = useQuery({
+    queryKey: ['exploreBrands'],
+    queryFn: fetchBrands,
+    enabled: showFilters,
+    staleTime: 5 * 60_000,
   })
+  const brands = (brandOptions ?? []).map(b => b.brand)
 
-  const brands = [...new Set(posts.map(p => p.brand).filter(Boolean))].sort()
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (dSearch.length < 2) { setUsers([]); return }
+      const found = await searchUsers(dSearch)
+      if (!cancelled) setUsers(found)
+    }
+    run()
+    return () => { cancelled = true }
+  }, [dSearch])
+
+  // Infinite scroll: same observer as the feed.
+  useEffect(() => {
+    if (!sentinelRef.current) return
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        loadMore()
+      }
+    }, { threshold: 0.1 })
+    obs.observe(sentinelRef.current)
+    return () => obs.disconnect()
+  }, [loadMore, hasMore, loadingMore])
+
+  const handleLike = (e, post) => {
+    e.stopPropagation()
+    toggleLike(post)
+  }
 
   return (
     <div className="flex flex-col dark:bg-gray-900 dark:text-white">
@@ -235,7 +201,7 @@ function Explore() {
             <div key={i} className="aspect-square bg-gray-100 dark:bg-gray-800 animate-pulse rounded-sm" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : posts.length === 0 ? (
         <EmptyState
           icon={
             <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -247,8 +213,8 @@ function Explore() {
         />
       ) : (
         <div>
-          <div className="grid grid-cols-2 gap-0.5 p-0.5">
-            {filtered.map((post, index) => (
+          <div className={`grid grid-cols-2 gap-0.5 p-0.5 transition-opacity ${updating ? 'opacity-60' : ''}`}>
+            {posts.map((post, index) => (
               <div
                 key={post.id}
                 className={`bg-gray-50 dark:bg-gray-800 overflow-hidden relative rounded-sm ${index % 3 === 0 ? 'row-span-2' : ''}`}
@@ -256,7 +222,7 @@ function Explore() {
               >
                 <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate(`/post/${post.id}`)} className="w-full h-full active:opacity-80 transition-opacity">
                   {(post.image_urls?.[0] || post.image_url) ? (
-                    <img src={post.image_urls?.[0] ?? post.image_url} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                    <img src={post.image_urls?.[0] ?? post.image_url} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" alt="" loading="lazy" decoding="async" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-4xl bg-green-50 dark:bg-green-900/20">🛍️</div>
                   )}
@@ -278,16 +244,20 @@ function Explore() {
                 </motion.button>
 
                 <button
-                  onClick={e => handleLike(e, post.id)}
+                  onClick={e => handleLike(e, post)}
                   className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/30 flex items-center justify-center active:scale-95 transition-transform"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 transition-all ${likedIds.has(post.id) ? 'text-red-500 fill-red-500 scale-110' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 transition-all ${post.liked_by_me ? 'text-red-500 fill-red-500 scale-110' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </button>
               </div>
             ))}
           </div>
+          <div ref={sentinelRef} className="h-1" />
+          {loadingMore && (
+            <div className="py-4 text-center text-xs text-gray-400">Cargando más...</div>
+          )}
         </div>
       )}
     </div>

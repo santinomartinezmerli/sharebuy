@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs -- direction is derived from refs during render on purpose; changing it would alter the page transition */
 import { useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 

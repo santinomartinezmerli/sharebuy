@@ -1,33 +1,28 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
 import Avatar from './Avatar'
+import { useComments } from '../hooks/useComments'
 
 function CommentSheet({ postId, currentUserId, onClose }) {
   const navigate = useNavigate()
-  const [comments, setComments] = useState([])
-  const [loading, setLoading] = useState(true)
   const [newComment, setNewComment] = useState('')
-  const [sending, setSending] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
   const [visible, setVisible] = useState(false)
   const inputRef = useRef(null)
 
+  // Same comments as PostDetail: 20 per page with a "Ver más" button, shown from cache first.
+  const {
+    comments, total, loading, loadingMore, hasMore, loadMore,
+    send, sending, editComment, deleteById,
+  } = useComments(postId, currentUserId)
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the slide-in needs one render with visible=false first
     setVisible(true)
-    const fetch = async () => {
-      const { data } = await supabase
-        .from('comments')
-        .select('*, profiles(username, avatar_url)')
-        .eq('post_id', postId)
-        .order('created_at', { ascending: true })
-      setComments(data ?? [])
-      setLoading(false)
-    }
-    fetch()
-    setTimeout(() => inputRef.current?.focus(), 400)
-  }, [postId])
+    const id = setTimeout(() => inputRef.current?.focus(), 400)
+    return () => clearTimeout(id)
+  }, [])
 
   const handleClose = () => {
     setVisible(false)
@@ -35,31 +30,24 @@ function CommentSheet({ postId, currentUserId, onClose }) {
   }
 
   const handleSend = async () => {
-    if (!newComment.trim()) return
-    setSending(true)
-    const { data, error } = await supabase
-      .from('comments')
-      .insert({ post_id: postId, user_id: currentUserId, content: newComment.trim() })
-      .select('*, profiles(username, avatar_url)')
-      .single()
-    if (!error) {
-      setComments(prev => [...prev, data])
-      setNewComment('')
-    }
-    setSending(false)
+    const text = newComment.trim()
+    if (!text) return
+    setNewComment('')
+    // The comment shows at once; if it could not be saved the text goes back to the input.
+    const saved = await send(text)
+    if (!saved) setNewComment(text)
   }
 
   const handleDelete = async (commentId) => {
-    await supabase.from('comments').delete().eq('id', commentId)
-    setComments(prev => prev.filter(c => c.id !== commentId))
+    await deleteById(commentId)
   }
 
   const handleEdit = async (commentId) => {
     if (!editText.trim()) return
-    await supabase.from('comments').update({ content: editText.trim() }).eq('id', commentId)
-    setComments(prev => prev.map(c => c.id === commentId ? { ...c, content: editText.trim() } : c))
+    const text = editText
     setEditingId(null)
     setEditText('')
+    await editComment(commentId, text)
   }
 
   return (
@@ -78,7 +66,7 @@ function CommentSheet({ postId, currentUserId, onClose }) {
         </div>
         <div className="flex items-center justify-between px-5 py-2 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
           <span className="text-sm font-semibold text-gray-900 dark:text-white">Comentarios</span>
-          <span className="text-xs text-gray-400">{comments.length > 0 ? comments.length : ''}</span>
+          <span className="text-xs text-gray-400">{total > 0 ? total : ''}</span>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-3 min-h-0">
           {loading ? (
@@ -141,6 +129,15 @@ function CommentSheet({ postId, currentUserId, onClose }) {
                   )}
                 </div>
               ))}
+              {hasMore && (
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="text-xs text-green-500 font-medium self-start active:scale-95 disabled:opacity-50"
+                >
+                  {loadingMore ? 'Cargando...' : 'Ver más comentarios'}
+                </button>
+              )}
             </div>
           )}
         </div>

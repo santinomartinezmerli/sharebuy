@@ -10,7 +10,7 @@ function Avatar({ url, username, size = 'md' }) {
   return (
     <div className={`${SIZES[size]} rounded-full bg-green-100 flex items-center justify-center text-green-700 font-medium overflow-hidden flex-shrink-0`}>
       {url
-        ? <img src={url} className="w-full h-full object-cover" alt="" />
+        ? <img src={url} className="w-full h-full object-cover" alt="" loading="lazy" decoding="async" />
         : <span>{username?.slice(0, 2).toUpperCase() ?? '??'}</span>
       }
     </div>

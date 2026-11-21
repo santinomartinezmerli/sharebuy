@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/UserContext.jsx'
 import { SkeletonList } from '../components/Skeleton'
+import { useFollowList, useToggleFollowInList } from '../hooks/useFollowList'
 
 function FollowList() {
   const { userId } = useParams()
@@ -10,63 +10,24 @@ function FollowList() {
   const type = searchParams.get('type') || 'followers'
   const navigate = useNavigate()
   const { userId: currentUserId } = useUser()
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [followingMap, setFollowingMap] = useState({})
+  const sentinelRef = useRef(null)
 
+  // 30 users per page, most recent follow first. Each user carries `following` (do I follow
+  // them), looked up only for the ids of its page. Cached for 60s: coming back is instant.
+  const { users, loading, loadingMore, hasMore, loadMore } = useFollowList(userId, type, currentUserId)
+  const { toggle: handleFollow } = useToggleFollowInList(currentUserId)
+
+  // Infinite scroll: same observer as the feed.
   useEffect(() => {
-    const fetch = async () => {
-      if (!currentUserId) return
-
-      let query
-      if (type === 'followers') {
-        query = await supabase
-          .from('follows')
-          .select('profiles:follower_id(id, username, avatar_url, bio)')
-          .eq('following_id', userId)
-      } else {
-        query = await supabase
-          .from('follows')
-          .select('profiles:following_id(id, username, avatar_url, bio)')
-          .eq('follower_id', userId)
+    if (!sentinelRef.current) return
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        loadMore()
       }
-
-      const fetched = query.data?.map(d => d.profiles) ?? []
-      setUsers(fetched)
-
-      const ids = fetched.map(u => u.id)
-      if (ids.length > 0) {
-        const { data: follows } = await supabase
-          .from('follows')
-          .select('following_id')
-        .eq('follower_id', currentUserId)
-        .in('following_id', ids)
-        const map = {}
-        ;(follows ?? []).forEach(f => { map[f.following_id] = true })
-        setFollowingMap(map)
-      }
-
-      setLoading(false)
-    }
-    fetch()
-  }, [userId, type, currentUserId])
-
-  const handleFollow = async (targetId) => {
-    const wasFollowing = followingMap[targetId]
-    setFollowingMap(prev => ({ ...prev, [targetId]: !wasFollowing }))
-
-    if (wasFollowing) {
-      const { error } = await supabase.from('follows').delete()
-        .eq('follower_id', currentUserId)
-        .eq('following_id', targetId)
-      if (error) setFollowingMap(prev => ({ ...prev, [targetId]: true }))
-    } else {
-      const { error } = await supabase.from('follows').insert({
-        follower_id: currentUserId, following_id: targetId
-      })
-      if (error) setFollowingMap(prev => ({ ...prev, [targetId]: false }))
-    }
-  }
+    }, { threshold: 0.1 })
+    obs.observe(sentinelRef.current)
+    return () => obs.disconnect()
+  }, [loadMore, hasMore, loadingMore])
 
   return (
     <div className="flex flex-col dark:bg-gray-900 dark:text-white">
@@ -94,7 +55,7 @@ function FollowList() {
         <div className="flex flex-col">
           {users.map(user => {
             const isOwn = user.id === currentUserId
-            const isFollowing = followingMap[user.id]
+            const isFollowing = user.following
             return (
               <div key={user.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-800">
                 <button
@@ -103,7 +64,7 @@ function FollowList() {
                 >
                   <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-green-100 flex items-center justify-center text-green-700 text-sm font-medium`}>
                     {user.avatar_url
-                      ? <img src={user.avatar_url} className="w-full h-full object-cover" />
+                      ? <img src={user.avatar_url} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       : user.username?.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -113,7 +74,7 @@ function FollowList() {
                 </button>
                 {!isOwn && (
                   <button
-                    onClick={() => handleFollow(user.id)}
+                    onClick={() => handleFollow(user)}
                     className={`flex-shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
                       isFollowing
                         ? 'border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300'
@@ -126,6 +87,10 @@ function FollowList() {
               </div>
             )
           })}
+          <div ref={sentinelRef} className="h-1" />
+          {loadingMore && (
+            <div className="py-4 text-center text-xs text-gray-400">Cargando más...</div>
+          )}
         </div>
       )}
     </div>

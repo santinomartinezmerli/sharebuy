@@ -1,94 +1,49 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '../lib/supabase'
-
-const PAGE_SIZE = 10
-
-async function fetchFeedIds(userId) {
-  if (!userId) return { ids: [], blockedIds: new Set() }
-  const [followsData, blockedData] = await Promise.all([
-    supabase.from('follows').select('following_id').eq('follower_id', userId),
-    supabase.from('blocked_users').select('blocked_id').eq('blocker_id', userId)
-  ])
-  const blockedIds = new Set(blockedData.data?.map(b => b.blocked_id) ?? [])
-  const followingIds = (followsData.data?.map(f => f.following_id) ?? []).filter(id => !blockedIds.has(id))
-  const ids = [userId, ...followingIds]
-  return { ids, blockedIds }
-}
-
-async function fetchPostsPage(ids, page) {
-  const from = page * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
-  const { data, error } = await supabase
-    .from('posts')
-    .select('*, profiles(username, avatar_url)')
-    .in('user_id', ids)
-    .order('created_at', { ascending: false })
-    .range(from, to)
-  if (error) throw error
-  return data ?? []
-}
+import { useMemo, useCallback, useEffect } from 'react'
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchFeedPage } from '../services/feed'
+import { feedKey } from '../lib/feedCache'
 
 export function useFeed(userId) {
-  const [posts, setPosts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [page, setPage] = useState(0)
-  const idsRef = useRef([])
+  const queryClient = useQueryClient()
 
-  const loadPage = useCallback(async (pageIndex, append = false) => {
-    const ids = idsRef.current
-    if (!ids.length) return []
-    const data = await fetchPostsPage(ids, pageIndex)
-    if (append) {
-      setPosts(prev => [...prev, ...data])
-    } else {
-      setPosts(data)
-    }
-    setHasMore(data.length >= PAGE_SIZE)
-    return data
-  }, [])
+  const query = useInfiniteQuery({
+    queryKey: feedKey(userId),
+    queryFn: async ({ pageParam }) => {
+      try {
+        return await fetchFeedPage(pageParam)
+      } catch (err) {
+        console.error('Feed request failed:', err)
+        throw err
+      }
+    },
+    initialPageParam: null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: !!userId,
+    // Within 60s coming back to the feed costs no request. Anything that changes the feed
+    // calls invalidateFeed() (see lib/feedCache.js), which forces a refetch on the next
+    // visit; older data is shown instantly and refreshed in the background.
+    staleTime: 60_000,
+  })
 
-  const refreshFeed = useCallback(async () => {
-    if (!userId) return
-    setLoading(true)
-    const { ids } = await fetchFeedIds(userId)
-    idsRef.current = ids
-    await loadPage(0, false)
-    setPage(1)
-    setLoading(false)
-  }, [userId, loadPage])
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query
 
-  const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || !userId) return
-    setLoadingMore(true)
-    const data = await loadPage(page, true)
-    if (data.length > 0) {
-      setPage(prev => prev + 1)
-    } else {
-      setHasMore(false)
-    }
-    setLoadingMore(false)
-  }, [loadingMore, hasMore, userId, page, loadPage])
+  const posts = useMemo(() => data?.pages.flatMap((page) => page.posts) ?? [], [data])
 
-  useEffect(() => {
-    let cancelled = false
-    const init = async () => {
-      if (!userId) return
-      setLoading(true)
-      const { ids } = await fetchFeedIds(userId)
-      if (cancelled) return
-      idsRef.current = ids
-      const data = await fetchPostsPage(ids, 0)
-      if (cancelled) return
-      setPosts(data)
-      setHasMore(data.length >= PAGE_SIZE)
-      setPage(1)
-      setLoading(false)
-    }
-    init()
-    return () => { cancelled = true }
-  }, [userId])
+  // After a failed "load more" stop paginating instead of retrying in a loop
+  // (the scroll observer would fire again immediately).
+  const hasMore = !!hasNextPage && !isFetchNextPageError
+
+  const loadMore = useCallback(() => {
+    if (!hasMore || isFetchingNextPage) return
+    fetchNextPage()
+  }, [hasMore, isFetchingNextPage, fetchNextPage])
+
+  // Pull-to-refresh: reset to the initial state and fetch only page 1. While it runs the
+  // query is pending again, so the skeleton shows exactly like before.
+  const refreshFeed = useCallback(
+    () => queryClient.resetQueries({ queryKey: feedKey(userId) }),
+    [queryClient, userId]
+  )
 
   useEffect(() => {
     window.__ptrRefresh = refreshFeed
@@ -100,5 +55,5 @@ export function useFeed(userId) {
     }
   }, [refreshFeed])
 
-  return { posts, loading, loadingMore, hasMore, loadMore, refreshFeed }
+  return { posts, loading: query.isPending, loadingMore: isFetchingNextPage, hasMore, loadMore, refreshFeed }
 }

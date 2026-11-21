@@ -35,7 +35,7 @@ function PostSkeleton() {
 }
 
 function Feed() {
-  const { user, userId } = useUser()
+  const { userId } = useUser()
   const { posts, loading, loadingMore, hasMore, loadMore } = useFeed(userId)
   const storyGroups = useStories(posts)
   const [activeStoryGroup, setActiveStoryGroup] = useState(null)

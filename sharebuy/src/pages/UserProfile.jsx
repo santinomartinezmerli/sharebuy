@@ -1,87 +1,41 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/UserContext.jsx'
 import { SkeletonProfile } from '../components/Skeleton'
 import { motion } from 'framer-motion'
+import { useProfile } from '../hooks/useProfile'
+import { useProfilePosts } from '../hooks/useProfilePosts'
+import { useProfileRelationship } from '../hooks/useProfileRelationship'
 
 function UserProfile() {
   const { userId } = useParams()
   const navigate = useNavigate()
   const { userId: currentUserId } = useUser()
-  const [profile, setProfile] = useState(null)
-  const [posts, setPosts] = useState([])
-  const [following, setFollowing] = useState(false)
-  const [blocked, setBlocked] = useState(false)
-  const [followersCount, setFollowersCount] = useState(0)
-  const [followingCount, setFollowingCount] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const sentinelRef = useRef(null)
 
+  // Header (profile, counts, do I follow / did I block) and posts are cached for 60s:
+  // coming back to a profile you just saw is instant.
+  const { data: summary, isPending: summaryPending } = useProfile(userId, currentUserId)
+  const { posts, total, loading: postsLoading, loadingMore, hasMore, loadMore } = useProfilePosts(userId)
+  const { toggleFollow: handleFollow, toggleBlock: handleBlock } = useProfileRelationship(userId, currentUserId)
+  const profile = summary?.profile ?? null
+  const followersCount = summary?.followersCount ?? 0
+  const followingCount = summary?.followingCount ?? 0
+  const following = !!summary?.following
+  const blocked = !!summary?.blocked
+
+  // Infinite scroll: same observer as the feed.
   useEffect(() => {
-    if (!currentUserId) return
-    const fetch = async () => {
-      const { data: profileData } = await supabase
-        .from('profiles').select('*').eq('id', userId).single()
-
-      const { data: postsData } = await supabase
-        .from('posts').select('*').eq('user_id', userId)
-        .order('created_at', { ascending: false })
-
-      const { count: followers } = await supabase
-        .from('follows').select('*', { count: 'exact', head: true })
-        .eq('following_id', userId)
-
-      const { count: followingC } = await supabase
-        .from('follows').select('*', { count: 'exact', head: true })
-        .eq('follower_id', userId)
-
-      const { data: followData } = await supabase
-        .from('follows').select('id')
-        .eq('follower_id', currentUserId)
-        .eq('following_id', userId)
-        .maybeSingle()
-
-      const { data: blockData } = await supabase
-        .from('blocked_users').select('id')
-        .eq('blocker_id', currentUserId)
-        .eq('blocked_id', userId)
-        .maybeSingle()
-
-      setProfile(profileData)
-      setPosts(postsData ?? [])
-      setFollowersCount(followers ?? 0)
-      setFollowingCount(followingC ?? 0)
-      setFollowing(!!followData)
-      setBlocked(!!blockData)
-      setLoading(false)
-    }
-    fetch()
-  }, [userId, currentUserId])
-
-  const handleFollow = async () => {
-    const wasFollowing = following
-    setFollowing(!wasFollowing)
-    setFollowersCount(prev => prev + (wasFollowing ? -1 : 1))
-
-    if (wasFollowing) {
-      const { error } = await supabase.from('follows').delete()
-        .eq('follower_id', currentUserId)
-        .eq('following_id', userId)
-      if (error) {
-        setFollowing(wasFollowing)
-        setFollowersCount(prev => prev + 1)
+    if (!sentinelRef.current) return
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        loadMore()
       }
-    } else {
-      const { error } = await supabase.from('follows').insert({
-        follower_id: currentUserId,
-        following_id: userId
-      })
-      if (error) {
-        setFollowing(wasFollowing)
-        setFollowersCount(prev => prev - 1)
-      }
-    }
-  }
+    }, { threshold: 0.1 })
+    obs.observe(sentinelRef.current)
+    return () => obs.disconnect()
+  }, [loadMore, hasMore, loadingMore])
 
   const handleMessage = async () => {
     const { data: existing } = await supabase
@@ -104,21 +58,7 @@ function UserProfile() {
     if (!error) navigate(`/messages/${newConv.id}`)
   }
 
-  const handleBlock = async () => {
-    if (blocked) {
-      await supabase.from('blocked_users').delete()
-        .eq('blocker_id', currentUserId)
-        .eq('blocked_id', userId)
-      setBlocked(false)
-    } else {
-      await supabase.from('blocked_users').insert({
-        blocker_id: currentUserId, blocked_id: userId
-      })
-      setBlocked(true)
-    }
-  }
-
-  if (loading) return <SkeletonProfile />
+  if (summaryPending || postsLoading) return <SkeletonProfile />
 
   return (
     <div className="flex flex-col dark:bg-gray-900 dark:text-white">
@@ -141,7 +81,7 @@ function UserProfile() {
           </div>
           <div className="flex gap-6 flex-1 justify-center">
             <div className="flex flex-col items-center">
-              <span className="text-base font-semibold text-gray-900 dark:text-white">{posts.length}</span>
+              <span className="text-base font-semibold text-gray-900 dark:text-white">{total}</span>
               <span className="text-[11px] text-gray-400">compras</span>
             </div>
             <button
@@ -198,6 +138,7 @@ function UserProfile() {
           <p className="text-sm">Sin compras todavía</p>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-3 gap-0.5">
           {posts.map(post => (
             <motion.button
@@ -206,13 +147,18 @@ function UserProfile() {
               className="aspect-square bg-gray-50 dark:bg-gray-800 overflow-hidden"
             >
               {post.image_url ? (
-                <img src={post.image_url} className="w-full h-full object-cover" />
+                <img src={post.image_url} className="w-full h-full object-cover" loading="lazy" decoding="async" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-3xl">🛍️</div>
               )}
             </motion.button>
           ))}
         </div>
+        <div ref={sentinelRef} className="h-1" />
+        {loadingMore && (
+          <div className="py-4 text-center text-xs text-gray-400">Cargando más...</div>
+        )}
+        </>
       )}
     </div>
   )

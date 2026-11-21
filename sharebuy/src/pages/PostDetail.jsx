@@ -5,17 +5,28 @@ import { useUser } from '../lib/UserContext.jsx'
 import ImageCarousel from '../components/ImageCarousel'
 import Avatar from '../components/Avatar'
 import { SkeletonPostDetail } from '../components/Skeleton'
+import { useQueryClient } from '@tanstack/react-query'
+import { invalidateFeed } from '../lib/feedCache'
+import { invalidatePostChanges } from '../lib/queryInvalidation'
+import { invalidateSavedPosts } from '../lib/profileCache'
+import { useComments } from '../hooks/useComments'
 
 function PostDetail() {
   const { postId } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const location = useLocation()
   const commentInputRef = useRef(null)
   const { userId: currentUserId } = useUser()
+  // Comments: 20 per page with a "Ver más" button, shared with the feed's CommentSheet.
+  const {
+    comments, total: commentsTotal, loading: commentsLoading,
+    loadingMore: commentsLoadingMore, hasMore: commentsHasMore, loadMore: loadMoreComments,
+    send: sendComment, editComment, deleteById: deleteCommentById,
+  } = useComments(postId, currentUserId)
   const [post, setPost] = useState(location.state?.post ?? null)
   const [reviews, setReviews] = useState([])
-  const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
   const [loading, setLoading] = useState(true)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -36,7 +47,7 @@ function PostDetail() {
           .from('posts')
           .select('*, profiles(username, avatar_url)')
           .eq('id', postId)
-          .single()
+          .maybeSingle()
         setPost(postData)
       }
 
@@ -46,12 +57,6 @@ function PostDetail() {
         .eq('post_id', postId)
         .order('created_at', { ascending: false })
 
-      const { data: commentsData } = await supabase
-        .from('comments')
-        .select('*, profiles(username, avatar_url)')
-        .eq('post_id', postId)
-        .order('created_at', { ascending: true })
-
       const { data: savedData } = await supabase
         .from('saves')
         .select('id')
@@ -60,7 +65,6 @@ function PostDetail() {
         .maybeSingle()
 
       setReviews(reviewsData ?? [])
-      setComments(commentsData ?? [])
       setSaved(!!savedData)
       setLoading(false)
     }
@@ -77,44 +81,30 @@ function PostDetail() {
     const text = newComment.trim()
     if (!text) return
 
-    const tempId = `temp-${Date.now()}`
-    setComments(prev => [...prev, {
-      id: tempId, post_id: postId, user_id: currentUserId, content: text, created_at: new Date().toISOString(),
-      profiles: { username: 'tú', avatar_url: null }
-    }])
     setNewComment('')
     setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
 
-    const { data, error } = await supabase
-      .from('comments')
-      .insert({ post_id: postId, user_id: currentUserId, content: text })
-      .select('*, profiles(username, avatar_url)')
-      .single()
-
-    if (error) {
-      setComments(prev => prev.filter(c => c.id !== tempId))
-    } else if (data) {
-      setComments(prev => prev.map(c => c.id === tempId ? data : c))
-    }
+    const saved = await sendComment(text)
+    if (!saved) setNewComment(text)
   }
 
   const handleDeletePost = async () => {
     setDeleting(true)
     await supabase.from('posts').delete().eq('id', postId)
+    invalidatePostChanges(queryClient)
     navigate('/profile', { replace: true })
   }
 
   const handleDeleteComment = async (commentId) => {
-    await supabase.from('comments').delete().eq('id', commentId)
-    setComments(prev => prev.filter(c => c.id !== commentId))
+    await deleteCommentById(commentId)
   }
 
   const handleEditComment = async (commentId) => {
     if (!editCommentText.trim()) return
-    await supabase.from('comments').update({ content: editCommentText.trim() }).eq('id', commentId)
-    setComments(prev => prev.map(c => c.id === commentId ? { ...c, content: editCommentText.trim() } : c))
+    const text = editCommentText
     setEditingCommentId(null)
     setEditCommentText('')
+    await editComment(commentId, text)
   }
 
   const handleDeleteReview = async (reviewId) => {
@@ -164,6 +154,8 @@ function PostDetail() {
       const { error } = await supabase.from('saves').insert({ post_id: postId, user_id: currentUserId })
       if (error) setSaved(false)
     }
+    invalidateFeed(queryClient)
+    invalidateSavedPosts(queryClient)
   }
 
   if (loading) return <SkeletonPostDetail />
@@ -326,7 +318,7 @@ function PostDetail() {
               const { data } = await supabase
                 .from('posts').update({ for_sale: !post.for_sale })
                 .eq('id', post.id).select().single()
-              if (data) setPost(data)
+              if (data) { setPost(data); invalidateFeed(queryClient) }
             }} className={`mt-3 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors bg-white dark:bg-white ${post.for_sale ? 'border-red-200 text-red-500' : 'border-green-200 text-green-600'}`}>
               {post.for_sale ? 'Quitar de venta' : 'Poner en venta'}
             </button>
@@ -358,7 +350,7 @@ function PostDetail() {
         {/* Comentarios */}
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
           <p className="text-xs text-gray-400 uppercase tracking-wide mb-3">
-            {comments.length === 0 ? 'Sin comentarios' : `${comments.length} comentarios`}
+            {commentsLoading ? 'Comentarios' : commentsTotal === 0 ? 'Sin comentarios' : `${commentsTotal} comentarios`}
           </p>
           <div className="flex flex-col gap-3">
             {comments.map(comment => (
@@ -404,6 +396,15 @@ function PostDetail() {
                 )}
               </div>
             ))}
+            {commentsHasMore && (
+              <button
+                onClick={loadMoreComments}
+                disabled={commentsLoadingMore}
+                className="text-xs text-green-500 font-medium self-start active:scale-95 disabled:opacity-50"
+              >
+                {commentsLoadingMore ? 'Cargando...' : 'Ver más comentarios'}
+              </button>
+            )}
             <div ref={commentsEndRef} />
           </div>
         </div>

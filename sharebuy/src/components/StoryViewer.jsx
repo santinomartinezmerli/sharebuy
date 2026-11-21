@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-function StoryViewer({ storyGroups, activeGroupIndex, onClose, onNextGroup, onPrevGroup }) {
+function StoryViewer({ storyGroups, activeGroupIndex, onClose, onNextGroup }) {
   const navigate = useNavigate()
   const group = storyGroups[activeGroupIndex]
   const [current, setCurrent] = useState(0)
@@ -9,6 +9,7 @@ function StoryViewer({ storyGroups, activeGroupIndex, onClose, onNextGroup, onPr
   const [paused, setPaused] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset story position when the group changes; StoryViewer behaviour must not change
     setCurrent(0)
     setProgress(0)
   }, [group.userId])
@@ -33,15 +34,6 @@ function StoryViewer({ storyGroups, activeGroupIndex, onClose, onNextGroup, onPr
       setProgress(0)
     } else {
       onNextGroup()
-    }
-  }
-
-  const goPrev = () => {
-    if (current > 0) {
-      setCurrent(c => c - 1)
-      setProgress(0)
-    } else {
-      onPrevGroup()
     }
   }
 

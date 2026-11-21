@@ -1,3 +1,8 @@
+.vercel
+
+# Local Netlify folder
+.netlify
+
 # Logs
 logs
 *.log
@@ -7,7 +12,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build outputs
 dist
 dist-ssr
 *.local
@@ -22,12 +30,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.netlify
+
+# Environment
 .env
+.env.*
+!.env.example
 
-.vercel
-
-# Workspace artifacts
-*.exe
-*.winmd
-Entrega final.txt
+# OS files
+Thumbs.db
+CLAUDE.md

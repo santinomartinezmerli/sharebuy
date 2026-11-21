@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 export function useStories(posts) {
   return useMemo(() => {
     if (!posts?.length) return []
+    // eslint-disable-next-line react-hooks/purity -- stories expire after 24h, so the cutoff depends on the current time
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const recentPosts = posts.filter(p => new Date(p.created_at) > oneDayAgo)
     const groups = {}

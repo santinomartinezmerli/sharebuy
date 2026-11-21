@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook and PullIndicator live together; splitting files is out of scope
 export function usePullToRefresh(onRefresh) {
   const [pulling, setPulling] = useState(false)
   const [pullDistance, setPullDistance] = useState(0)
@@ -8,6 +9,7 @@ export function usePullToRefresh(onRefresh) {
   const pullingRef = useRef(false)
   const distanceRef = useRef(0)
   const refreshRef = useRef(onRefresh)
+  // eslint-disable-next-line react-hooks/refs -- keeps the latest callback for the touch listeners
   refreshRef.current = onRefresh
 
   const THRESHOLD = 60
@@ -45,7 +47,7 @@ export function usePullToRefresh(onRefresh) {
       if (pullingRef.current && distanceRef.current >= THRESHOLD) {
         window.dispatchEvent(new CustomEvent('ptr-refresh'))
         const fn = window.__ptrRefresh
-        if (fn) { try { fn() } catch (e) {} }
+        if (fn) { try { fn() } catch { /* a failing refresh handler must not break touchend */ } }
       }
       pullingRef.current = false
       setPulling(false)

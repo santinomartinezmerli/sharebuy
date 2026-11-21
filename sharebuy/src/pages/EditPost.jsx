@@ -3,10 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ImageCarousel from '../components/ImageCarousel'
 import { SkeletonForm } from '../components/Skeleton'
+import { useQueryClient } from '@tanstack/react-query'
+import { invalidatePostChanges } from '../lib/queryInvalidation'
 
 function EditPost() {
   const { postId } = useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [imageUrls, setImageUrls] = useState([])
@@ -25,7 +28,7 @@ function EditPost() {
         .from('posts')
         .select('*')
         .eq('id', postId)
-        .single()
+        .maybeSingle()
 
       if (data) {
         setForm({
@@ -68,6 +71,7 @@ function EditPost() {
 
     setSaving(false)
     if (error) { console.error(error); return }
+    invalidatePostChanges(queryClient)
     navigate(`/post/${postId}`, { replace: true })
   }
 

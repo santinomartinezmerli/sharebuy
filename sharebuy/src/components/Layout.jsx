@@ -6,6 +6,8 @@ import { useDarkMode } from '../lib/DarkModeContext'
 import { usePullToRefresh, PullIndicator } from '../hooks/usePullToRefresh'
 import { useNavDirection } from '../hooks/useNavDirection'
 import { useUser } from '../lib/UserContext.jsx'
+import { useQueryClient } from '@tanstack/react-query'
+import { invalidateConversations } from '../lib/conversationsCache'
 
 function Layout({ children }) {
   const location = useLocation()
@@ -15,6 +17,7 @@ function Layout({ children }) {
   })
   const { dark, toggle } = useDarkMode()
   const { user } = useUser()
+  const queryClient = useQueryClient()
   const direction = useNavDirection()
   const scrollMap = useRef({})
   const prevPathRef = useRef(location.pathname)
@@ -55,6 +58,7 @@ function Layout({ children }) {
   }, [user])
 
   // Re-fetch unread count on every navigation (so badge updates after viewing a chat)
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on navigation; replaced by unread_count() RPC in phase 6
   useEffect(() => { fetchUnread() }, [location, fetchUnread])
 
   // Real-time subscription for new messages
@@ -62,6 +66,9 @@ function Layout({ children }) {
     if (!user) return
     const channel = supabase.channel('unread-messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        // Any new message, mine or not, changes the order, the last message and the unread counts
+        // of the conversation list. RLS only sends this channel the messages of my conversations.
+        invalidateConversations(queryClient)
         if (payload.new.sender_id !== user.id) {
           const lr = JSON.parse(localStorage.getItem('chatLastRead') || '{}')
           const lastReadAt = lr[payload.new.conversation_id]
@@ -73,7 +80,7 @@ function Layout({ children }) {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [user])
+  }, [user, queryClient])
 
   return (
     <div className="flex flex-col h-dvh max-w-md mx-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden">

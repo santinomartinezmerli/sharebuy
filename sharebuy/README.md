@@ -100,14 +100,16 @@ VITE_SUPABASE_ANON_KEY=your_anon_key
 
 ### Database Setup
 
-Run the included migrations file against your Supabase project:
+Run the included schema file against your Supabase project:
 
 ```bash
 # Via Supabase CLI
-supabase db push --db-url your_db_url < supabase/migrations/001_add_indexes.sql
+supabase db push --db-url your_db_url < supabase-migrations.sql
 ```
 
-Or paste the migration directly into the Supabase SQL editor.
+Or paste `supabase-migrations.sql` directly into the Supabase SQL editor.
+
+Once the schema is in place, you can also apply the performance indexes in `supabase/migrations/001_add_indexes.sql`.
 
 ### Run locally
 

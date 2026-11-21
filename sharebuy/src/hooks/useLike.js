@@ -1,46 +1,37 @@
-import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { useCallback } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { addLike, removeLike } from '../services/engagement'
+import { feedKey, patchFeedPost } from '../lib/feedCache'
 
-export function useLike(postId, userId) {
-  const [liked, setLiked] = useState(false)
-  const [likesCount, setLikesCount] = useState(0)
-  const [loading, setLoading] = useState(false)
+// Reads liked/likesCount straight from the post (which lives in the react-query cache) and
+// updates the cache optimistically, so the heart is right even after leaving and coming
+// back to the feed. On error the previous state is restored.
+export function useLike(post, userId) {
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    if (!userId) return
-    const fetchLikes = async () => {
-      const [{ count }, { data: userLike }] = await Promise.all([
-        supabase.from('likes').select('*', { count: 'exact', head: true }).eq('post_id', postId),
-        supabase.from('likes').select('id').eq('post_id', postId).eq('user_id', userId).single()
-      ])
-      setLikesCount(count ?? 0)
-      setLiked(!!userLike)
-    }
-    fetchLikes()
-  }, [postId, userId])
+  // Moves the post to `liked`: +1 when it becomes liked, -1 when it stops being liked.
+  // Applying it with the new state does the optimistic update; applying it with the old
+  // state undoes it.
+  const setLikedState = (liked) =>
+    patchFeedPost(queryClient, userId, post.id, (p) => ({
+      liked_by_me: liked,
+      like_count: (p.like_count ?? 0) + (liked ? 1 : -1),
+    }))
 
-  const toggleLike = useCallback(async () => {
-    if (!userId || loading) return
-    setLoading(true)
-    const wasLiked = liked
-    setLiked(!wasLiked)
-    setLikesCount(prev => prev + (wasLiked ? -1 : 1))
+  const { mutate, isPending } = useMutation({
+    mutationFn: ({ wasLiked }) => (wasLiked ? removeLike(post.id, userId) : addLike(post.id, userId)),
+    onMutate: async ({ wasLiked }) => {
+      // A background refetch landing now would overwrite the optimistic value.
+      await queryClient.cancelQueries({ queryKey: feedKey(userId) })
+      setLikedState(!wasLiked)
+    },
+    onError: (_err, { wasLiked }) => setLikedState(wasLiked),
+  })
 
-    if (wasLiked) {
-      const { error } = await supabase.from('likes').delete().eq('post_id', postId).eq('user_id', userId)
-      if (error) {
-        setLiked(true)
-        setLikesCount(prev => prev + 1)
-      }
-    } else {
-      const { error } = await supabase.from('likes').insert({ post_id: postId, user_id: userId })
-      if (error) {
-        setLiked(false)
-        setLikesCount(prev => prev - 1)
-      }
-    }
-    setLoading(false)
-  }, [liked, loading, postId, userId])
+  const toggleLike = useCallback(() => {
+    if (!userId || isPending) return
+    mutate({ wasLiked: !!post.liked_by_me })
+  }, [userId, isPending, mutate, post.liked_by_me])
 
-  return { liked, likesCount, toggleLike, loading }
+  return { liked: !!post.liked_by_me, likesCount: post.like_count ?? 0, toggleLike, loading: isPending }
 }

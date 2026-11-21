@@ -17,6 +17,7 @@ export function DarkModeProvider({ children }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- provider and hook share one context; splitting files is out of scope
 export function useDarkMode() {
   return useContext(DarkModeContext)
 }

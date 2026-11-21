@@ -1,82 +1,32 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/UserContext.jsx'
 import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
 import { SkeletonList } from '../components/Skeleton'
 import { motion } from 'framer-motion'
-
+import { useConversations } from '../hooks/useConversations'
 
 function Messages() {
   const navigate = useNavigate()
   const { userId } = useUser()
-  const [conversations, setConversations] = useState([])
-  const [loading, setLoading] = useState(true)
+  const sentinelRef = useRef(null)
 
-  const fetchData = useCallback(async () => {
-    if (!userId) return
+  // 20 conversations per page, most recently active first. Pull-to-refresh and the refetch when
+  // the tab becomes visible again live in useConversations.
+  const { conversations, loading, loadingMore, hasMore, loadMore } = useConversations(userId)
 
-    const [convResult, blockedResult] = await Promise.all([
-      supabase.from('conversations')
-        .select('*, user1:user1_id(id, username, avatar_url), user2:user2_id(id, username, avatar_url)')
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-        .order('created_at', { ascending: false }),
-      supabase.from('blocked_users').select('blocked_id').eq('blocker_id', userId)
-    ])
-
-    const blockedIds = new Set(blockedResult.data?.map(b => b.blocked_id) ?? [])
-    const filtered = (convResult.data ?? []).filter(conv => {
-      const other = conv.user1_id === userId ? conv.user2 : conv.user1
-      return other && !blockedIds.has(other.id)
-    })
-
-    const convIds = filtered.map(c => c.id)
-    const lastMsgMap = {}
-    const unreadMap = {}
-
-    if (convIds.length > 0) {
-      const { data: allMsgs } = await supabase.from('messages')
-        .select('conversation_id, id, sender_id, created_at, content')
-        .in('conversation_id', convIds).order('created_at', { ascending: false }).limit(1000)
-
-      let lastRead = {}
-      try { lastRead = JSON.parse(localStorage.getItem('chatLastRead') || '{}') } catch (e) {}
-      const seenConv = new Set()
-
-      for (const msg of allMsgs ?? []) {
-        if (!seenConv.has(msg.conversation_id)) {
-          lastMsgMap[msg.conversation_id] = msg
-          seenConv.add(msg.conversation_id)
-        }
-        const lastReadAt = lastRead[msg.conversation_id]
-        if (msg.sender_id !== userId && (!lastReadAt || new Date(msg.created_at).getTime() > lastReadAt)) {
-          unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1
-        }
+  // Infinite scroll: same observer as the feed.
+  useEffect(() => {
+    if (!sentinelRef.current) return
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        loadMore()
       }
-    }
-
-    setConversations(filtered.map(c => ({
-      ...c,
-      lastMessage: lastMsgMap[c.id] ?? null,
-      unreadCount: unreadMap[c.id] ?? 0,
-    })))
-    setLoading(false)
-  }, [userId])
-
-  useEffect(() => {
-    fetchData()
-    const onVisible = () => { if (!document.hidden) fetchData() }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [fetchData])
-
-  useEffect(() => {
-    window.__ptrRefresh = fetchData
-    const handler = () => fetchData()
-    window.addEventListener('ptr-refresh', handler)
-    return () => { window.removeEventListener('ptr-refresh', handler); window.__ptrRefresh = null }
-  }, [fetchData])
+    }, { threshold: 0.1 })
+    obs.observe(sentinelRef.current)
+    return () => obs.disconnect()
+  }, [loadMore, hasMore, loadingMore])
 
   if (loading) return <SkeletonList count={6} />
 
@@ -105,7 +55,7 @@ function Messages() {
       ) : (
         <div className="flex flex-col">
           {conversations.map(conv => {
-            const other = conv.user1_id === userId ? conv.user2 : conv.user1
+            const other = conv.other_user
             return (
               <motion.button
                 key={conv.id} whileTap={{ scale: 0.98 }}
@@ -116,25 +66,29 @@ function Messages() {
                 <div className="flex-1 min-w-0 text-left">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{other?.username}</p>
-                    {conv.unreadCount > 0 && (
+                    {conv.unread_count > 0 && (
                       <span className="flex-shrink-0 bg-green-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
-                        {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                        {conv.unread_count > 9 ? '9+' : conv.unread_count}
                       </span>
                     )}
                   </div>
-                  {conv.lastMessage && (
+                  {conv.last_message && (
                     <p className="text-xs text-gray-400 truncate mt-0.5">
-                      {conv.lastMessage.sender_id === userId
+                      {conv.last_message.sender_id === userId
                         ? '✓ Enviado'
-                        : /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(conv.lastMessage.content)
+                        : /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(conv.last_message.content)
                           ? '📷 Foto'
-                          : conv.lastMessage.content}
+                          : conv.last_message.content}
                     </p>
                   )}
                 </div>
               </motion.button>
             )
           })}
+          <div ref={sentinelRef} className="h-1" />
+          {loadingMore && (
+            <div className="py-4 text-center text-xs text-gray-400">Cargando más...</div>
+          )}
         </div>
       )}
     </div>

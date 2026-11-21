@@ -10,12 +10,12 @@ function ImageCarousel({ images, brand, className = '' }) {
 
   const urls = images && images.length > 0 ? images : []
 
-  if (urls.length === 0) return null
-
   const goTo = useCallback((index) => {
     setCurrent(index)
     currentRef.current = index
   }, [])
+
+  if (urls.length === 0) return null
 
   const prev = (e) => {
     e.stopPropagation()
@@ -85,6 +85,7 @@ function ImageCarousel({ images, brand, className = '' }) {
 
   const isAtStart = current === 0 && dragX > 0
   const isAtEnd = current === urls.length - 1 && dragX < 0
+  // eslint-disable-next-line react-hooks/refs -- container width is needed to convert drag pixels to percent
   const dragPct = dragging ? (dragX / getContainerWidth()) * 100 : 0
   const effectiveOffset = (isAtStart || isAtEnd) ? dragPct * 0.25 : dragPct
 
@@ -111,7 +112,7 @@ function ImageCarousel({ images, brand, className = '' }) {
         {urls.map((url, i) => (
           <div key={i} className="w-full flex-shrink-0">
             <div className="aspect-square bg-gray-50 relative overflow-hidden">
-              <img src={url} className="w-full h-full object-cover" alt="" draggable={false} />
+              <img src={url} className="w-full h-full object-cover" alt="" draggable={false} loading="lazy" decoding="async" />
             </div>
           </div>
         ))}

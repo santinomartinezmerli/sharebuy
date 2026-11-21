@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/UserContext.jsx'
+import { compressImage } from '../lib/compressImage'
+import { useChatMessages, useChatPartner } from '../hooks/useChatMessages'
 import Avatar from '../components/Avatar'
 import { SkeletonChat } from '../components/Skeleton'
 
@@ -9,10 +11,7 @@ function Chat() {
   const { conversationId } = useParams()
   const navigate = useNavigate()
   const { userId } = useUser()
-  const [messages, setMessages] = useState([])
-  const [otherUser, setOtherUser] = useState(null)
   const [newMessage, setNewMessage] = useState('')
-  const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState(null)
   const [pendingPhotos, setPendingPhotos] = useState([])
@@ -21,9 +20,21 @@ function Chat() {
   const [deletingMsgId, setDeletingMsgId] = useState(null)
   const [typing, setTyping] = useState(false)
   const [otherTyping, setOtherTyping] = useState(false)
-  const [readMap, setReadMap] = useState({})
+  const [, setReadMap] = useState({})
   const fileInputRef = useRef(null)
   const typingTimeoutRef = useRef(null)
+  const scrollRef = useRef(null)      // the message list (a column-reverse scroller: scrollTop 0 is the bottom)
+  const sentinelRef = useRef(null)    // last in the DOM = top of the screen: loads older messages
+  const markedReadRef = useRef(null)
+
+  // Latest 30 messages, newest first, with older ones loaded as you scroll up. The messages of the
+  // other user come through Realtime (addIncoming); mine are shown optimistically (send).
+  const {
+    messages, loading: messagesLoading, loadingMore, hasMore, loadMore,
+    send, editMessage, deleteById, addIncoming,
+  } = useChatMessages(conversationId, userId)
+  const { otherUser, loading: partnerLoading } = useChatPartner(conversationId, userId)
+  const loading = messagesLoading || partnerLoading
 
   // Mark conversation as read immediately on mount (not just after async fetch)
   useEffect(() => {
@@ -32,43 +43,42 @@ function Chat() {
     localStorage.setItem('chatLastRead', JSON.stringify(prev))
   }, [conversationId])
 
+  // Mark the unread messages of the loaded page as read in the DB, once per conversation, as
+  // before (but only the latest page is loaded now, not the whole history).
+  // KNOWN ISSUE: this UPDATE is on messages the OTHER user sent, and the current RLS policy only
+  // lets the sender update their own messages, so it matches no row and read receipts do not work
+  // yet. It needs the mark_conversation_read RPC planned for a later phase.
   useEffect(() => {
-    const fetch = async () => {
-      if (!userId) return
-
-      const { data: conv } = await supabase
-        .from('conversations')
-        .select('*, user1:user1_id(id, username, avatar_url), user2:user2_id(id, username, avatar_url)')
-        .eq('id', conversationId)
-        .single()
-
-      if (conv) {
-        setOtherUser(conv.user1_id === userId ? conv.user2 : conv.user1)
-      }
-
-      const { data: msgs } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true })
-
-      setMessages(msgs ?? [])
-
-      // Mark unread messages as read in DB (if column exists)
-      const unreadIds = (msgs ?? [])
-        .filter(m => m.sender_id !== userId && !m.read_at)
-        .map(m => m.id)
-      if (unreadIds.length > 0) {
-        const { error } = await supabase.from('messages')
-          .update({ read_at: new Date().toISOString() })
-          .in('id', unreadIds)
+    if (!userId || messagesLoading || markedReadRef.current === conversationId) return
+    markedReadRef.current = conversationId
+    const unreadIds = messages
+      .filter(m => m.sender_id !== userId && !m.read_at && !String(m.id).startsWith('temp-'))
+      .map(m => m.id)
+    if (unreadIds.length === 0) return
+    supabase.from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .in('id', unreadIds)
+      .then(({ error }) => {
         if (error) console.warn('read_at update failed (column may not exist yet)')
-      }
+      })
+  }, [conversationId, userId, messagesLoading, messages])
 
-      setLoading(false)
-    }
-    fetch()
-  }, [conversationId, userId])
+  // Load older messages when the top of the list comes into view. The list is a column-reverse
+  // scroller, so the sentinel (last in the DOM) is at the top and the scroll position is measured
+  // from the bottom: adding older messages above does not move what you are reading. The observer
+  // uses the list as its root and asks 200px early.
+  useEffect(() => {
+    const root = scrollRef.current
+    const target = sentinelRef.current
+    if (!root || !target) return
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        loadMore()
+      }
+    }, { root, rootMargin: '200px 0px 0px 0px', threshold: 0 })
+    obs.observe(target)
+    return () => obs.disconnect()
+  }, [hasMore, loadingMore, loadMore])
 
   useEffect(() => {
     if (!userId) return
@@ -81,7 +91,10 @@ function Chat() {
         filter: `conversation_id=eq.${conversationId}`
       }, async (payload) => {
         const msg = payload.new
-        setMessages(prev => [...prev, msg])
+        // Goes through the cache: a message already there (or my own pending one) is never duplicated.
+        addIncoming(msg)
+        // My own messages (the echo of a text, or a photo) bring the view back to the bottom.
+        if (msg.sender_id === userId && scrollRef.current) scrollRef.current.scrollTop = 0
         // Auto-mark as read
         if (msg.sender_id !== userId) {
           await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('id', msg.id)
@@ -103,13 +116,17 @@ function Chat() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [conversationId, userId])
+  }, [conversationId, userId, addIncoming])
 
   const handleSend = async () => {
     const text = newMessage.trim()
     setNewMessage('')
 
     if (!text && pendingPhotos.length === 0) return
+
+    // Whatever the user was reading, sending brings the view back to the latest messages
+    // (the list is column-reverse, so scrollTop 0 is the bottom).
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
 
     const photos = [...pendingPhotos]
     setPendingPhotos([])
@@ -118,15 +135,30 @@ function Chat() {
       setUploading(true)
       setUploadError(null)
 
-      for (const photo of photos) {
-        const ext = photo.file.name.split('.').pop()
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i]
+
+        let file
+        try {
+          file = await compressImage(photo.file)
+        } catch (err) {
+          setUploadError(err.message)
+          setPendingPhotos(photos.slice(i)) // give back what was not sent yet
+          setNewMessage(text)
+          setUploading(false)
+          return
+        }
+
+        const ext = file.name.split('.').pop()
         const filename = `chat-${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
         const { error: uploadError } = await supabase.storage
           .from('chat')
-          .upload(filename, photo.file)
+          .upload(filename, file)
 
         if (uploadError) {
           setUploadError(uploadError.message)
+          setPendingPhotos(photos.slice(i))
+          setNewMessage(text)
           setUploading(false)
           return
         }
@@ -142,9 +174,10 @@ function Chat() {
     }
 
     if (text) {
-      await supabase.from('messages').insert({
-        conversation_id: conversationId, sender_id: userId, content: text
-      })
+      // Optimistic: the message shows at once. If it could not be saved it disappears and the
+      // text goes back to the input.
+      const saved = await send(text)
+      if (!saved) setNewMessage(text)
     }
   }
 
@@ -196,14 +229,14 @@ function Chat() {
       setEditingMsgId(null)
       return
     }
-    await supabase.from('messages').update({ content: text, updated_at: new Date().toISOString() }).eq('id', msgId)
-    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: text, updated_at: new Date().toISOString() } : m))
     setEditingMsgId(null)
+    // Optimistic: the new text shows at once and goes back if the update did not happen.
+    await editMessage(msgId, text)
   }
 
   const handleDeleteMessage = async (msgId) => {
-    await supabase.from('messages').delete().eq('id', msgId)
-    setMessages(prev => prev.filter(m => m.id !== msgId))
+    // Leaves the list only once the server confirmed the delete.
+    await deleteById(msgId)
     setDeletingMsgId(null)
   }
 
@@ -223,13 +256,13 @@ function Chat() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col-reverse gap-2">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col-reverse gap-2">
         {messages.length === 0 && (
           <p className="text-center text-xs text-gray-400 mt-4">
             Es el comienzo de tu conversación con {otherUser?.username}
           </p>
         )}
-        {[...messages].reverse().map(msg => {
+        {messages.map(msg => {
           const isMine = msg.sender_id === userId
           const isImage = msg.is_image || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(msg.content)
           const isEditing = editingMsgId === msg.id
@@ -287,6 +320,11 @@ function Chat() {
             </div>
           )
         })}
+        {/* Last in the DOM = top of the screen (column-reverse): reaching it loads older messages. */}
+        <div ref={sentinelRef} className="h-px flex-shrink-0" />
+        {loadingMore && (
+          <p className="text-center text-xs text-gray-400 py-2">Cargando mensajes anteriores...</p>
+        )}
       </div>
 
       {otherTyping && (

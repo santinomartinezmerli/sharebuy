@@ -21,37 +21,40 @@ import EditPost from './pages/EditPost'
 import { supabase } from './lib/supabase'
 
 function App() {
-  const { session, loading } = useUser()
+  const { session, loading, user, userId } = useUser()
+  const userEmail = user?.email
   const [needsSetup, setNeedsSetup] = useState(false)
 
-  const checkProfile = async (user) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single()
+  // Runs once per user (not on every token refresh): one query to know if the profile
+  // exists and is complete; if it does not exist yet, create it.
+  useEffect(() => {
+    if (!userId) return
+    let cancelled = false
 
-    if (!data) {
-      const username = user.email?.split('@')[0] ?? 'usuario'
-      await supabase.from('profiles').insert({
-        id: user.id,
-        username: username,
-        setup_complete: false
-      })
-      setNeedsSetup(true)
-    } else {
+    const checkProfile = async () => {
       const { data: profile } = await supabase
         .from('profiles')
         .select('setup_complete')
-        .eq('id', user.id)
-        .single()
-      setNeedsSetup(!profile?.setup_complete)
-    }
-  }
+        .eq('id', userId)
+        .maybeSingle()
+      if (cancelled) return
 
-  useEffect(() => {
-    if (session) checkProfile(session.user)
-  }, [session])
+      if (!profile) {
+        // ignoreDuplicates = ON CONFLICT DO NOTHING: safe if two checks race.
+        await supabase.from('profiles').upsert(
+          { id: userId, username: userEmail?.split('@')[0] ?? 'usuario', setup_complete: false },
+          { onConflict: 'id', ignoreDuplicates: true }
+        )
+        if (cancelled) return
+        setNeedsSetup(true)
+      } else {
+        setNeedsSetup(!profile.setup_complete)
+      }
+    }
+
+    checkProfile()
+    return () => { cancelled = true }
+  }, [userId, userEmail])
 
   if (loading) return (
     <div className="flex items-center justify-center h-screen">

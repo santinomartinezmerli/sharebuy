@@ -7,8 +7,8 @@ import { useSave } from '../hooks/useSave'
 
 function PostCard({ post, currentUserId, onCommentClick }) {
   const navigate = useNavigate()
-  const { liked, likesCount, toggleLike } = useLike(post.id, currentUserId)
-  const { saved, toggleSave } = useSave(post.id, currentUserId)
+  const { liked, likesCount, toggleLike } = useLike(post, currentUserId)
+  const { saved, toggleSave } = useSave(post, currentUserId)
 
   const imageUrls = (post.image_urls && post.image_urls.length > 0)
     ? post.image_urls
@@ -38,7 +38,7 @@ function PostCard({ post, currentUserId, onCommentClick }) {
         ) : imageUrls.length === 1 ? (
           <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate(`/post/${post.id}`, { state: { post } })} className="w-full block">
             <div className="relative aspect-square bg-gray-50 dark:bg-gray-700 rounded-xl overflow-hidden">
-              <img src={imageUrls[0]} className="w-full h-full object-cover" alt="" />
+              <img src={imageUrls[0]} className="w-full h-full object-cover" alt="" loading="lazy" decoding="async" />
               {post.brand && (
                 <span className="absolute bottom-2 left-2 bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-200 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-sm">
                   {post.brand}

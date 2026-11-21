@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/UserContext.jsx'
+import { compressImage, MAX_AVATAR_SIZE } from '../lib/compressImage'
 import { SkeletonForm } from '../components/Skeleton'
+import { useQueryClient } from '@tanstack/react-query'
+import { invalidateProfileChanges } from '../lib/queryInvalidation'
 
 function EditProfile() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { userId } = useUser()
   const [form, setForm] = useState({ username: '', bio: '' })
   const [avatarUrl, setAvatarUrl] = useState(null)
@@ -24,7 +28,7 @@ function EditProfile() {
         .from('profiles')
         .select('username, bio, avatar_url')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
       if (data) {
         setForm({ username: data.username ?? '', bio: data.bio ?? '' })
@@ -57,11 +61,20 @@ function EditProfile() {
     let newAvatarUrl = removeAvatar ? null : avatarUrl
 
     if (avatarFile && !removeAvatar) {
-      const ext = avatarFile.name.split('.').pop()
+      let file
+      try {
+        file = await compressImage(avatarFile, { maxSize: MAX_AVATAR_SIZE })
+      } catch (err) {
+        setError(err.message)
+        setSaving(false)
+        return
+      }
+
+      const ext = file.name.split('.').pop()
       const filename = `avatar-${userId}-${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filename, avatarFile, { upsert: true })
+        .upload(filename, file, { upsert: true })
 
       if (uploadError) {
         setError(`Error al subir: ${uploadError.message}`)
@@ -93,6 +106,7 @@ function EditProfile() {
       return
     }
 
+    invalidateProfileChanges(queryClient)
     navigate('/profile')
   }
 

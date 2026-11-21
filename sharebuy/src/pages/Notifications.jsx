@@ -124,7 +124,7 @@ function Notifications() {
           { event: 'INSERT', schema: 'public', table: 'follows', filter: `following_id=eq.${userId}` },
           async (payload) => {
             const { data: profile } = await supabase
-              .from('profiles').select('username').eq('id', payload.new.follower_id).single()
+              .from('profiles').select('username').eq('id', payload.new.follower_id).maybeSingle()
             setNotifications(prev => [{
               id: `follow-${payload.new.id}`, type: 'follow',
               username: profile?.username ?? 'alguien',

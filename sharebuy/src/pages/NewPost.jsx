@@ -2,9 +2,13 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/UserContext.jsx'
+import { compressImage } from '../lib/compressImage'
+import { useQueryClient } from '@tanstack/react-query'
+import { invalidatePostChanges } from '../lib/queryInvalidation'
 
 function NewPost() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { userId } = useUser()
   const fileInputRef = useRef(null)
   const [form, setForm] = useState({
@@ -16,6 +20,7 @@ function NewPost() {
   })
   const [images, setImages] = useState([])   // { file, preview }[]
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -36,18 +41,34 @@ function NewPost() {
   const handleSubmit = async () => {
     if (!form.product || !userId) return
     setLoading(true)
+    setError(null)
+
+    // Compress every photo BEFORE uploading any, one at a time to keep memory low on phones.
+    // If a photo can't be processed (e.g. HEIC on Chrome) we stop here with a clear message:
+    // nothing was uploaded yet and the form keeps everything the user typed.
+    const filesToUpload = []
+    for (const entry of images) {
+      try {
+        filesToUpload.push(await compressImage(entry.file))
+      } catch (err) {
+        setError(err.message)
+        setLoading(false)
+        return
+      }
+    }
 
     const uploadedUrls = []
 
-    for (const entry of images) {
-      const ext = entry.file.name.split('.').pop()
+    for (const file of filesToUpload) {
+      const ext = file.name.split('.').pop()
       const filename = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('posts')
-        .upload(filename, entry.file)
+        .upload(filename, file)
 
       if (uploadError) {
         console.error(uploadError)
+        setError('No pudimos subir las fotos. Revisá tu conexión e intentá de nuevo.')
         setLoading(false)
         return
       }
@@ -72,7 +93,12 @@ function NewPost() {
     })
 
     setLoading(false)
-    if (error) { console.error(error); return }
+    if (error) {
+      console.error(error)
+      setError('No pudimos publicar tu compra. Intentá de nuevo.')
+      return
+    }
+    invalidatePostChanges(queryClient)
     navigate('/feed')
   }
 
@@ -95,6 +121,12 @@ function NewPost() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
+
+        {error && (
+          <p role="alert" className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-lg px-3 py-2.5">
+            {error}
+          </p>
+        )}
 
         {/* Área de fotos */}
         <input
